@@ -571,7 +571,11 @@ get_basic_ui_information <- function() {
     left_join(ucClaimsPaymentsPUC20, by = all_cols) %>% 
     left_join(ucClaimsPaymentsPUA20, by = all_cols) %>% 
     #left_join(pua_claims, by = all_cols) %>% 
-    replace(is.na(.), 0)
+    replace(is.na(.), 0) %>% 
+    # added this unique because on 6/12/2021, I found that there were a handful of
+    # months where PEUC20 was repeating months.  the unique just ensures that
+    # the same row doesn't appear 2x
+    unique()
   
   # compute US Averages and add them into the df
   usAvg <- ucClaimsPayments %>% 
