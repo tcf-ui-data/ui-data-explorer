@@ -911,8 +911,8 @@ getUCFirstTimePaymentLapse <- function() {
   # compute US Averages and add them into the df
   usAvg <- ucFirstTimePaymentLapse %>% 
     group_by(rptdate) %>% 
-    summarize(across(where(is.numeric), function(x) round(mean(x, na.rm = T), 3))) %>% 
-    mutate(first_time_payment_total = NA) # this is ported from earlier code; I'm not sure why I did this back then
+    summarize(across(where(is.numeric), function(x) round(mean(x, na.rm = T), 3))) #%>% 
+    #mutate(first_time_payment_total = NA) # this is ported from earlier code; I'm not sure why I did this back then
   
   ucFirstTimePaymentLapse <- ucFirstTimePaymentLapse %>% 
     bind_rows(usAvg %>% mutate(st = "US (avg)")) %>% 
@@ -961,8 +961,8 @@ getUCAppealsTimeLapseLower <- function(ucBenefitAppealsRegular) {
   # compute US Averages  
   usAvg <- ucAppealsTimeLapseLower %>% 
     group_by(rptdate) %>% 
-    summarize(across(where(is.numeric), function(x) round(mean(x, na.rm = T), 3))) %>% 
-    mutate(total_lower_appeals = NA) # this is ported from earlier code; I'm not sure why I did this back then
+    summarize(across(where(is.numeric), function(x) round(mean(x, na.rm = T), 3))) #%>% 
+    #mutate(total_lower_appeals = NA) # this is ported from earlier code; I'm not sure why I did this back then
   
   ucAppealsTimeLapseLower <- ucAppealsTimeLapseLower %>% 
     bind_rows(usAvg %>% mutate(st = "US (avg)")) %>% 
@@ -1007,8 +1007,8 @@ getucAppealsTimeLapseHigher <- function() {
   #compute US Averages
   usAvg <- ucAppealsTimeLapseHigher %>% 
     group_by(rptdate) %>% 
-    summarize(across(where(is.numeric), function(x) round(mean(x, na.rm = T), 3))) %>% 
-    mutate(total_higher_appeals = NA) # this is ported from earlier code; I'm not sure why I did this back then
+    summarize(across(where(is.numeric), function(x) round(mean(x, na.rm = T), 3))) # %>% 
+    #mutate(total_higher_appeals = NA) # this is ported from earlier code; I'm not sure why I did this back then
   
   ucAppealsTimeLapseHigher <- ucAppealsTimeLapseHigher %>% 
     bind_rows(usAvg %>% mutate(st = "US (avg)")) %>% 

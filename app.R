@@ -1278,13 +1278,12 @@ server <- function(input, output) {
                        "recipRate" = c("recipiency_annual_reg","recipiency_annual_total"),
                        "recipBreakdown" = c("total_week_mov_avg","unemployed_avg","recipiency_annual_total"),
                        "lowerAuthority" = c("total_lower_appeals", "lower_Within30Days", "lower_Within45Days", "lower_filed", "lower_appeals_total_disposed", "lower_appeals_total_outstanding"),
-                       "firstPay" = c("first_time_payment_total", "first_time_payment_Within15Days", "first_time_payment_Within21Days", "first_time_payment_Within35Days", "first_time_payment_total"),
+                       "firstPay" = c("first_time_payment_total", "first_time_payment_Within15Days", "first_time_payment_Within21Days", "first_time_payment_Within35Days"),
                        "higherAuthority" = c("total_higher_appeals", "higher_Within45Days", "higher_Within75Days", "higher_filed", "higher_appeals_total_disposed", "higher_appeals_total_outstanding"), 
     )
       
     col_list <- c("st", "rptdate", col_list)
-    
-    
+
     basicUI_names_list <- c("Initial Claims", "First Payments", "Weeks Compensated", "Partial Weeks Compensated", "Weeks Claimed",
                                                     "Number Exhausted", "Initial Payments / Initial Claims", "Workshare Initial Claims", 
                                                     "Workshare Continued Claims", "Workshare Weeks Compensated", "Workshare First Time Payments")
@@ -1347,7 +1346,7 @@ server <- function(input, output) {
                          "recipRate" = c("Annual Recipiency Rate (Regular UI)","Annual Recipiency Rate (Regular + Federal)"),
                          "recipBreakdown" = c("Weekly Continuing Claims (12-mo moving avg)", "Total Unemployed (12-mo moving avg)", "Recipiency Rate (state + federal programs)"),
                          "lowerAuthority" = c("Total Lower Authority Appeals", "Within 30 Days", "Within 45 Days", "Number Filed", "Number Decided", "Number Pending"),
-                         "firstPay" = c("Total First Time Payments", "Within 15 Days", "Within 21 Days", "Within 35 Days", "Total Paid"),
+                         "firstPay" = c("Total First Time Payments", "Within 15 Days", "Within 21 Days", "Within 35 Days"),
                          "higherAuthority" = c("Total Higher Authority Appeals", "Within 45 Days", "Within 75 Days", "Number Filed", "Number Decided", "Number Pending"))
     names_list <- c("State", "Report Date", names_list)
     
