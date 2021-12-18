@@ -34,16 +34,18 @@ source("helper.R")
 # for testing
 # input <- list(range = as.Date(c("2008-01-01", "2020-05-30")), state = "PA")
 # read in the df of data that we need
-p = arrow::ParquetArrowReaderProperties$create()
-p$set_read_dictionary(1, T)
-p$set_read_dictionary(3, T)
-
 stored_data_location <- file.path(get("DATA_DIR"), "unemployment_data.parquet")
-unemployed_df <- arrow::read_parquet(stored_data_location, props = p)
+# use open_dataset to reduce memory usage
+unemployed_df <- arrow::open_dataset(stored_data_location)
 
-maxDate <- max(unemployed_df$rptdate)
-minDate <- min(unemployed_df$rptdate)
-states <- sort(unique(unemployed_df$st))
+# create a small df 
+util_df <- unemployed_df %>% 
+  filter(rptdate >= ymd("2021-01-01") | rptdate < ymd("1980-01-01")) %>% 
+  collect()
+
+maxDate <- max(util_df$rptdate)
+minDate <- min(util_df$rptdate)
+states <- sort(unique(util_df$st))
 states <- states[states != "US"]
 pua_earliest <- ymd("2020-01-31")
 # Define UI for application that draws a histogram
@@ -233,7 +235,8 @@ server <- function(input, output) {
     df <- unemployed_df %>%
       filter(st == input$state,
              rptdate >= date_filter_start,
-             rptdate <= date_filter_end)
+             rptdate <= date_filter_end) %>% 
+      collect()
     
     if (input$viewData == "monthlyUI")
     {
@@ -526,7 +529,8 @@ server <- function(input, output) {
         filter(st == "US (avg)",
                rptdate >= date_filter_start,
                rptdate <= date_filter_end,
-               metric %in% metric_filter)
+               metric %in% metric_filter) %>% 
+        collect()
 
         uPlot <- getLinePlot(df, xlab = "Date", ylab = "",
                              caption = "Seasonally adjusted unemployed rate, based on BLS monthly report found here: https://www.bls.gov/web/laus/ststdsadata.txt.",
@@ -852,11 +856,14 @@ server <- function(input, output) {
     {
       
       # this represents the highest y value of all of the states for this metric
-      ymax = max(unemployed_df %>% 
+      ymax = unemployed_df %>% 
         filter(metric %in% metric_filter,
                rptdate > (date_filter_start-10),
                rptdate < (date_filter_end+10)) %>% 
-        select(value))
+        select(value) %>% 
+        collect() %>% 
+        pull() %>% 
+        max()
       
       uPlot <- uPlot + coord_cartesian(ylim=c(0, ymax),
                                        xlim=c(as.Date(date_filter_start), as.Date(date_filter_end)))
@@ -875,7 +882,8 @@ server <- function(input, output) {
     df <- unemployed_df %>% 
       filter(st == input$state,
              rptdate >= date_filter_start,
-             rptdate <= date_filter_end)
+             rptdate <= date_filter_end) %>% 
+      collect()
     
     
     if (input$viewData == "monthlyUI")
@@ -1355,6 +1363,7 @@ server <- function(input, output) {
              rptdate >= date_filter_start,
              rptdate <= date_filter_end,
              metric %in% col_list) %>% 
+      collect() %>% 
       pivot_wider(names_from = metric, values_from = value) %>% 
       rename_at(vars(all_of(col_list)), ~c(names_list)) %>% 
       arrange(desc(`Report Date`)) %>% 

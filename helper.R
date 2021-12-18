@@ -26,7 +26,8 @@ getUIMap <- function(df, uiDate, metric_filter, stateText, reverseLevels, prefix
 {
   # first filter the DF to just the metric we need
   df <- df %>% 
-    filter(metric == metric_filter)
+    filter(metric == metric_filter) %>% 
+    collect()
   
   #then try and figure out what month we are seaching for; the slider allows
   # values throughout the month, but our reports must be based on the last
@@ -97,7 +98,8 @@ getSMPlot <- function(df, startDate, endDate, measure, yLabel, plotTitle, free_y
   df <- df %>% 
     filter(rptdate >= startDate, 
            rptdate <= endDate, 
-           metric == measure)
+           metric == measure) %>% 
+    collect()
   
   # small multiple plot
   smPlot  <- df %>% 
@@ -135,7 +137,8 @@ get50StateComparisonPlot <- function(df, startDate, endDate, measure, highlightS
   df <- df %>% 
     filter(rptdate >= startDate, 
            rptdate <= endDate, 
-           metric == measure)
+           metric == measure) %>% 
+    collect()
   
   plot <- df %>% 
     ggplot(aes(x = rptdate, y = value, color = st)) +
