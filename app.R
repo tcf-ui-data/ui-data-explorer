@@ -53,7 +53,6 @@ ui <- fluidPage(
   # Application title
   titlePanel("Unemployment Insurance Data Explorer"),
   h4("Unemployment data, visualized and available for download."),
-  
   # Sidebar with a file input 
   sidebarLayout(
     sidebarPanel(
@@ -213,7 +212,6 @@ server <- function(input, output) {
   makeReactiveBinding("date_filter_start")
   makeReactiveBinding("date_filter_end")
   
-  
   toListen <- reactive({list(input$range, input$viewData)})
   
   observeEvent(toListen(), { 
@@ -227,15 +225,32 @@ server <- function(input, output) {
     } 
     
   })
-
+  
+  # get the dataset once so that we don't have to repeatedly read from the parquet file
+  filtered_data <- reactive({
+    unemployed_df %>%
+      filter(rptdate >= date_filter_start,
+             rptdate <= date_filter_end) %>% 
+      collect()
+  })
+  
+  filtered_data_date <- reactive({
+    if(input$constant_y_axis) {
+      start_date <- date_filter_start - 10
+      end_date <- date_filter_end + 10
+      unemployed_df %>%
+        filter(rptdate > (start_date),
+               rptdate < (end_date)) %>% 
+        collect()
+    }
+  })
+  
   # render the plot
   output$uiplot <- renderPlot({
 
     # get start and end date filters
-    df <- unemployed_df %>%
-      filter(st == input$state,
-             rptdate >= date_filter_start,
-             rptdate <= date_filter_end) %>% 
+    df <- filtered_data() %>%
+      filter(st == input$state) %>% 
       collect()
     
     if (input$viewData == "monthlyUI")
@@ -525,10 +540,8 @@ server <- function(input, output) {
       metric_filter = c("unemployment_rate_sa")
       df <- df %>% 
         filter(metric %in% metric_filter)
-      df_us <- unemployed_df %>% 
+      df_us <- filtered_data() %>% 
         filter(st == "US (avg)",
-               rptdate >= date_filter_start,
-               rptdate <= date_filter_end,
                metric %in% metric_filter) %>% 
         collect()
 
@@ -856,10 +869,8 @@ server <- function(input, output) {
     {
       
       # this represents the highest y value of all of the states for this metric
-      ymax = unemployed_df %>% 
-        filter(metric %in% metric_filter,
-               rptdate > (date_filter_start-10),
-               rptdate < (date_filter_end+10)) %>% 
+      ymax = filtered_data_date() %>% 
+        filter(metric %in% metric_filter) %>% 
         select(value) %>% 
         collect() %>% 
         pull() %>% 
@@ -879,10 +890,8 @@ server <- function(input, output) {
   # render the data table
   output$uidata <- renderDataTable({
     
-    df <- unemployed_df %>% 
-      filter(st == input$state,
-             rptdate >= date_filter_start,
-             rptdate <= date_filter_end) %>% 
+    df <- filtered_data() %>% 
+      filter(st == input$state) %>% 
       collect()
     
     
@@ -1358,10 +1367,8 @@ server <- function(input, output) {
                          "higherAuthority" = c("Total Higher Authority Appeals", "Within 45 Days", "Within 75 Days", "Number Filed", "Number Decided", "Number Pending"))
     names_list <- c("State", "Report Date", names_list)
     
-    df <- unemployed_df %>% 
+    df <- filtered_data() %>% 
       filter(st == input$state,
-             rptdate >= date_filter_start,
-             rptdate <= date_filter_end,
              metric %in% col_list) %>% 
       collect() %>% 
       pivot_wider(names_from = metric, values_from = value) %>% 
@@ -1379,41 +1386,41 @@ server <- function(input, output) {
   # render the proper leaflet map
   output$uimap <- renderLeaflet({
     uiMap <- switch(input$viewData,
-                    "monthlyUI" = getUIMap(unemployed_df, date_filter_end,"total_compensated_mov_avg", paste("12-mo moving average of total UI Payments disbursed in ", date_filter_end), FALSE, suffix = "M", scale = 1/1000000, round_digits = 0),
-                    "basicUI_claims" = getUIMap(unemployed_df, date_filter_end,"monthly_initial_claims", paste("Initial UI Claims in ", date_filter_end), FALSE),
-                    "basicWeeklyClaims" = getUIMap(unemployed_df, date_filter_end,"weekly_initial_claims", paste("Weekly Initial UI Claims in ", date_filter_end), FALSE),
-                    "basicUI_compensated" = getUIMap(unemployed_df, date_filter_end,"monthly_weeks_compensated", paste("Weeks Compensated in ", date_filter_end), FALSE),
-                    "basicUI_payment_rate" = getUIMap(unemployed_df, date_filter_end,"monthly_first_payments_as_prop_claims", paste("First Payments as a Proportion of Initial Claims in ", date_filter_end), FALSE),
-                    "basicUI_workshare_initial" = getUIMap(unemployed_df, date_filter_end,"workshare_initial_claims", paste("Workshare Initial Claims in ", date_filter_end), FALSE),
-                    "basicUI_workshare_continued" = getUIMap(unemployed_df, date_filter_end,"workshare_continued_claims", paste("Workshare Continued Claims in ", date_filter_end), FALSE),
-                    "demographics_race" = getUIMap(unemployed_df, date_filter_end,"demographic_race_prop_black", paste("Percent Black Claimants in ", date_filter_end), FALSE),
-                    "demographics_age" = getUIMap(unemployed_df, date_filter_end,"demographic_age_prop_under25", paste("Percent Claimants Under 25yo in ", date_filter_end), FALSE),
-                    "demographics_ethnicity" = getUIMap(unemployed_df, date_filter_end,"demographic_eth_prop_latinx", paste("Percent Latinx Claimants in ", date_filter_end), FALSE),
-                    "demographics_sex" = getUIMap(unemployed_df, date_filter_end,"demographic_sex_prop_women", paste("Percent Female Claimants in ", date_filter_end), FALSE),
-                    "puaData" = getUIMap(unemployed_df, date_filter_end,"pua_percent_eligible", paste("Pecent of Eligible PUA Applicants in ", date_filter_end), FALSE),
-                    "puaClaims" = getUIMap(unemployed_df, date_filter_end,"pua_weeks_compensated", paste("PUA Total Weeks Compensated in ", date_filter_end), FALSE),
-                    "pucClaims" = getUIMap(unemployed_df, date_filter_end,"puc_weeks", paste("PUC Total Weeks Compensated in ", date_filter_end), FALSE),
-                    "overvPayments" = getUIMap(unemployed_df, date_filter_end, "outstanding_proportion", paste("Outstanding Overpayment Balance as a Proportion of Total UI Paid Annually in ", date_filter_end), FALSE),
-                    "fraudvNon" = getUIMap(unemployed_df, date_filter_end,"fraud_num_percent", paste("Fraud vs Non-Fraud Overpayments in ",date_filter_end),FALSE),
-                    "overvRecovery" = getUIMap(unemployed_df, date_filter_end,"outstanding", paste("Outstanding Overpayments Balance in ",date_filter_end), FALSE, scale = 1/1000000, prefix = "$", suffix = "M", round_digits = 0),
-                    "nonMonDen" = getUIMap(unemployed_df, date_filter_end,"denial_rate_overall_per_determination", paste("Non-Monetary Denial Per Determination in ",date_filter_end),FALSE),
-                    "nonMonDenInitClaims" = getUIMap(unemployed_df, date_filter_end,"denial_rate_overall_per_initial_claim", paste("Non-Monetary Denial per Initial Claim in ",date_filter_end),FALSE),
-                    "nonMonSep" = getUIMap(unemployed_df, date_filter_end,"denial_sep_percent", paste("Proportion of Non-Monetary Denials that are Separation Related in ",date_filter_end),FALSE),
-                    "nonMonSepRate" = getUIMap(unemployed_df, date_filter_end,"denial_sep_rate_per_determination", paste("Non-Monetary Denial Per Determination in ",date_filter_end),FALSE),
-                    "nonMonSepRateInitClaims" = getUIMap(unemployed_df, date_filter_end,"denial_sep_rate_per_initial_claim", paste("Non-Monetary Denial Per Initial Claim in ",date_filter_end),FALSE),
-                    "nonMonNonSep" = getUIMap(unemployed_df, date_filter_end,"denial_non_percent_per_determination", paste("Proportion of Non-Monetary Denials that are Non-Separation Related in ",date_filter_end),FALSE),
-                    "nonMonNonSepRate" = getUIMap(unemployed_df, date_filter_end,"denial_non_rate_per_determination", paste("Non-Monetary Non-Separation Denial Per Determination in ",date_filter_end),FALSE),
-                    "nonMonNonSepRateInitClaims" = getUIMap(unemployed_df, date_filter_end,"denial_non_rate_per_initial_claim", paste("Non-Monetary Non-Separation Denial Per Initial Claim in ",date_filter_end),FALSE),
-                    "monetaryDeterminations" = getUIMap(unemployed_df, date_filter_end,"monetaryDet_mon_eligible_prop", paste("Proportion Monetarily Eligible in ",date_filter_end),FALSE),
-                    "monetaryDeterminations_max_weekly" = getUIMap(unemployed_df, date_filter_end,"monetaryDet_max_benefit_prop", paste("Proportion Eligible for Max Weekly Benefit in ",date_filter_end),FALSE),
-                    "monetaryDeterminations_average_weeks" = getUIMap(unemployed_df, date_filter_end,"monetaryDet_avg_weeks_duration", paste("Average Weeks Duration in ",date_filter_end),FALSE),
-                    "TOPS" = getUIMap(unemployed_df, date_filter_end,"federal_tax_recovery", paste("Federal Tax Intercepts in Quarter ending ",date_filter_end), FALSE, scale = 1/1000000, prefix = "$", suffix = "M", round_digits = 0),
-                    "recipRate" = getUIMap(unemployed_df, date_filter_end,"recipiency_annual_total", paste("Recipiency Rate (State+Federal) in ",date_filter_end), TRUE),
-                    "recipBreakdown" = getUIMap(unemployed_df, date_filter_end,"recipiency_annual_total", paste("Recipiency Rate (State+Federal) in ",date_filter_end), TRUE),
-                    "uirate" = getUIMap(unemployed_df, date_filter_end,"unemployment_rate_sa", paste("Seasonally Adjusted Unemployed Rate in ",date_filter_end), FALSE),
-                    "lowerAuthority" = getUIMap(unemployed_df, date_filter_end,"lower_Within45Days", paste("Proportion of First Level Appeal Decisions within 45 days, ",date_filter_end), TRUE),
-                    "firstPay" = getUIMap(unemployed_df, date_filter_end,"first_time_payment_Within35Days", paste("Proportion of First Payments within 35 days, ",date_filter_end), TRUE),
-                    "higherAuthority" = getUIMap(unemployed_df, date_filter_end,"higher_Within75Days", paste("Proportion of Second Level Appeal Decisions within 75 days, ",date_filter_end), TRUE))
+                    "monthlyUI" = getUIMap(filtered_data(), date_filter_end,"total_compensated_mov_avg", paste("12-mo moving average of total UI Payments disbursed in ", date_filter_end), FALSE, suffix = "M", scale = 1/1000000, round_digits = 0),
+                    "basicUI_claims" = getUIMap(filtered_data(), date_filter_end,"monthly_initial_claims", paste("Initial UI Claims in ", date_filter_end), FALSE),
+                    "basicWeeklyClaims" = getUIMap(filtered_data(), date_filter_end,"weekly_initial_claims", paste("Weekly Initial UI Claims in ", date_filter_end), FALSE),
+                    "basicUI_compensated" = getUIMap(filtered_data(), date_filter_end,"monthly_weeks_compensated", paste("Weeks Compensated in ", date_filter_end), FALSE),
+                    "basicUI_payment_rate" = getUIMap(filtered_data(), date_filter_end,"monthly_first_payments_as_prop_claims", paste("First Payments as a Proportion of Initial Claims in ", date_filter_end), FALSE),
+                    "basicUI_workshare_initial" = getUIMap(filtered_data(), date_filter_end,"workshare_initial_claims", paste("Workshare Initial Claims in ", date_filter_end), FALSE),
+                    "basicUI_workshare_continued" = getUIMap(filtered_data(), date_filter_end,"workshare_continued_claims", paste("Workshare Continued Claims in ", date_filter_end), FALSE),
+                    "demographics_race" = getUIMap(filtered_data(), date_filter_end,"demographic_race_prop_black", paste("Percent Black Claimants in ", date_filter_end), FALSE),
+                    "demographics_age" = getUIMap(filtered_data(), date_filter_end,"demographic_age_prop_under25", paste("Percent Claimants Under 25yo in ", date_filter_end), FALSE),
+                    "demographics_ethnicity" = getUIMap(filtered_data(), date_filter_end,"demographic_eth_prop_latinx", paste("Percent Latinx Claimants in ", date_filter_end), FALSE),
+                    "demographics_sex" = getUIMap(filtered_data(), date_filter_end,"demographic_sex_prop_women", paste("Percent Female Claimants in ", date_filter_end), FALSE),
+                    "puaData" = getUIMap(filtered_data(), date_filter_end,"pua_percent_eligible", paste("Pecent of Eligible PUA Applicants in ", date_filter_end), FALSE),
+                    "puaClaims" = getUIMap(filtered_data(), date_filter_end,"pua_weeks_compensated", paste("PUA Total Weeks Compensated in ", date_filter_end), FALSE),
+                    "pucClaims" = getUIMap(filtered_data(), date_filter_end,"puc_weeks", paste("PUC Total Weeks Compensated in ", date_filter_end), FALSE),
+                    "overvPayments" = getUIMap(filtered_data(), date_filter_end, "outstanding_proportion", paste("Outstanding Overpayment Balance as a Proportion of Total UI Paid Annually in ", date_filter_end), FALSE),
+                    "fraudvNon" = getUIMap(filtered_data(), date_filter_end,"fraud_num_percent", paste("Fraud vs Non-Fraud Overpayments in ",date_filter_end),FALSE),
+                    "overvRecovery" = getUIMap(filtered_data(), date_filter_end,"outstanding", paste("Outstanding Overpayments Balance in ",date_filter_end), FALSE, scale = 1/1000000, prefix = "$", suffix = "M", round_digits = 0),
+                    "nonMonDen" = getUIMap(filtered_data(), date_filter_end,"denial_rate_overall_per_determination", paste("Non-Monetary Denial Per Determination in ",date_filter_end),FALSE),
+                    "nonMonDenInitClaims" = getUIMap(filtered_data(), date_filter_end,"denial_rate_overall_per_initial_claim", paste("Non-Monetary Denial per Initial Claim in ",date_filter_end),FALSE),
+                    "nonMonSep" = getUIMap(filtered_data(), date_filter_end,"denial_sep_percent", paste("Proportion of Non-Monetary Denials that are Separation Related in ",date_filter_end),FALSE),
+                    "nonMonSepRate" = getUIMap(filtered_data(), date_filter_end,"denial_sep_rate_per_determination", paste("Non-Monetary Denial Per Determination in ",date_filter_end),FALSE),
+                    "nonMonSepRateInitClaims" = getUIMap(filtered_data(), date_filter_end,"denial_sep_rate_per_initial_claim", paste("Non-Monetary Denial Per Initial Claim in ",date_filter_end),FALSE),
+                    "nonMonNonSep" = getUIMap(filtered_data(), date_filter_end,"denial_non_percent_per_determination", paste("Proportion of Non-Monetary Denials that are Non-Separation Related in ",date_filter_end),FALSE),
+                    "nonMonNonSepRate" = getUIMap(filtered_data(), date_filter_end,"denial_non_rate_per_determination", paste("Non-Monetary Non-Separation Denial Per Determination in ",date_filter_end),FALSE),
+                    "nonMonNonSepRateInitClaims" = getUIMap(filtered_data(), date_filter_end,"denial_non_rate_per_initial_claim", paste("Non-Monetary Non-Separation Denial Per Initial Claim in ",date_filter_end),FALSE),
+                    "monetaryDeterminations" = getUIMap(filtered_data(), date_filter_end,"monetaryDet_mon_eligible_prop", paste("Proportion Monetarily Eligible in ",date_filter_end),FALSE),
+                    "monetaryDeterminations_max_weekly" = getUIMap(filtered_data(), date_filter_end,"monetaryDet_max_benefit_prop", paste("Proportion Eligible for Max Weekly Benefit in ",date_filter_end),FALSE),
+                    "monetaryDeterminations_average_weeks" = getUIMap(filtered_data(), date_filter_end,"monetaryDet_avg_weeks_duration", paste("Average Weeks Duration in ",date_filter_end),FALSE),
+                    "TOPS" = getUIMap(filtered_data(), date_filter_end,"federal_tax_recovery", paste("Federal Tax Intercepts in Quarter ending ",date_filter_end), FALSE, scale = 1/1000000, prefix = "$", suffix = "M", round_digits = 0),
+                    "recipRate" = getUIMap(filtered_data(), date_filter_end,"recipiency_annual_total", paste("Recipiency Rate (State+Federal) in ",date_filter_end), TRUE),
+                    "recipBreakdown" = getUIMap(filtered_data(), date_filter_end,"recipiency_annual_total", paste("Recipiency Rate (State+Federal) in ",date_filter_end), TRUE),
+                    "uirate" = getUIMap(filtered_data(), date_filter_end,"unemployment_rate_sa", paste("Seasonally Adjusted Unemployed Rate in ",date_filter_end), FALSE),
+                    "lowerAuthority" = getUIMap(filtered_data(), date_filter_end,"lower_Within45Days", paste("Proportion of First Level Appeal Decisions within 45 days, ",date_filter_end), TRUE),
+                    "firstPay" = getUIMap(filtered_data(), date_filter_end,"first_time_payment_Within35Days", paste("Proportion of First Payments within 35 days, ",date_filter_end), TRUE),
+                    "higherAuthority" = getUIMap(filtered_data(), date_filter_end,"higher_Within75Days", paste("Proportion of Second Level Appeal Decisions within 75 days, ",date_filter_end), TRUE))
       
     return(uiMap)
   })
@@ -1426,41 +1433,41 @@ server <- function(input, output) {
     free_y = !input$constant_y_axis
       
     smPlot <- switch(input$viewData,
-                    "monthlyUI" = getSMPlot(unemployed_df, date_filter_start, date_filter_end, "total_compensated_mov_avg", "Montly UI Payments","50-state Comparison of Total Monthly UI Payments", free_y, scale = 1/1000000, prefix = "", suffix = "M"),
-                    "basicUI_claims" = getSMPlot(unemployed_df, date_filter_start, date_filter_end, "monthly_initial_claims", "Initial Claims","50-state Comparison of Initial UI Claims", free_y),
-                    "basicWeeklyClaims" = getSMPlot(unemployed_df, date_filter_start, date_filter_end, "weekly_initial_claims", "Initial Claims","50-state Comparison of Weekly Initial UI Claims", free_y),
-                    "basicUI_compensated" = getSMPlot(unemployed_df, date_filter_start, date_filter_end, "monthly_weeks_compensated", "Weeks Compensated","50-state Comparison of Weeks of UI Compensated", free_y),
-                    "basicUI_payment_rate" = getSMPlot(unemployed_df, date_filter_start, date_filter_end, "monthly_first_payments_as_prop_claims", "Proportion","50-state Comparison of Initial Payments / Initial Claims", free_y),
-                    "basicUI_workshare_initial" = getSMPlot(unemployed_df, date_filter_start, date_filter_end, "workshare_initial_claims", "Initial Claims","50-state Comparison of Workshare Initial Claims", free_y),
-                    "basicUI_workshare_continued" = getSMPlot(unemployed_df, date_filter_start, date_filter_end, "workshare_continued_claims", "Continued Claims","50-state Comparison of Workshare Continued Claims", free_y),
-                    "demographics_race" = getSMPlot(unemployed_df, date_filter_start, date_filter_end, "demographic_race_prop_black", "Proportion","50-state Comparison of the Proportion of Black Claiamnts", free_y),
-                    "demographics_ethnicity" = getSMPlot(unemployed_df, date_filter_start, date_filter_end, "demographic_eth_prop_latinx", "Proportion","50-state Comparison of the Proportion of Latinx Claiamnts", free_y),
-                    "demographics_age" = getSMPlot(unemployed_df, date_filter_start, date_filter_end, "demographic_age_prop_under25", "Proportion","50-state Comparison of the Proportion of Claiamnts Under 25yo", free_y),
-                    "demographics_sex" = getSMPlot(unemployed_df, date_filter_start, date_filter_end, "demographic_sex_prop_women", "Proportion","50-state Comparison of the Proportion of Female Claiamnts", free_y),
-                    "puaData" = getSMPlot(unemployed_df, date_filter_start, date_filter_end, "pua_percent_eligible", "PUA Eligibility Rate","50-state Comparison of PUA Eligibility Rate", free_y),
-                    "puaClaims" = getSMPlot(unemployed_df, date_filter_start, date_filter_end, "pua_weeks_compensated", "Weeks Compesnated","50-state Comparison of Weeks of PUA Compensated", free_y),
-                    "pucClaims" = getSMPlot(unemployed_df, date_filter_start, date_filter_end, "puc_weeks", "Weeks Compesnated","50-state Comparison of Weeks of PUC Compensated", free_y),
-                    "overvPayments" = getSMPlot(unemployed_df, date_filter_start, date_filter_end, "outstanding_proportion", "Overpayment Balance/Annual UI Payments","50-state Comparison of Outstanding Overpayment Balance as a Proportion of Total UI Paid Annually", free_y),
-                    "fraudvNon" = getSMPlot(unemployed_df,date_filter_start, date_filter_end, "fraud_num_percent", "Fraud/Non-Fraud","50-state Comparison of Fraud vs Non-Fraud UI Overpayemnts", free_y),
-                    "overvRecovery" = getSMPlot(unemployed_df,date_filter_start, date_filter_end, "outstanding", "Overpayment Balance","50-state Comparison of Outstanding State UI Overpayment Balance", free_y, scale = 1/1000000, prefix = "$", suffix = "M"),
-                    "nonMonDen" = getSMPlot(unemployed_df,date_filter_start, date_filter_end, "denial_rate_overall_per_determination", "Non-Monetary Denial Per Determination","50-state Comparison of Denial Rates for Non-Monetary Reasons Per Determination", free_y),
-                    "nonMonDenInitClaims" = getSMPlot(unemployed_df,date_filter_start, date_filter_end, "denial_rate_overall_per_initial_claim", "Non-Monetary Denial Per Initial Claim","50-state Comparison of Denial Rates for Non-Monetary Reasons Per Initial Claim", free_y),
-                    "nonMonSep" = getSMPlot(unemployed_df,date_filter_start, date_filter_end, "denial_sep_percent", "Proportion of all Non-Monetary Determinations","50-state Comparison of Denials for Separation Reasons", free_y),
-                    "nonMonSepRate" = getSMPlot(unemployed_df,date_filter_start, date_filter_end, "denial_sep_rate_per_determination", "Non-Monetary Separation Denial Per Determination","50-state Comparison of Denial Rate for Separation Reasons Per Determination", free_y),
-                    "nonMonSepRateInitClaims" = getSMPlot(unemployed_df,date_filter_start, date_filter_end, "denial_sep_rate_per_initial_claim", "Non-Monetary Separation Denial Per Initial Claim","50-state Comparison of Denial Rate for Separation Reasons Per Initial Claim", free_y),
-                    "nonMonNonSep" = getSMPlot(unemployed_df,date_filter_start, date_filter_end, "denial_non_percent_per_determination", "Proportion of all Non-Monetary Determinations","50-state Comparison of Denials for Non-Separation Reasons", free_y),
-                    "nonMonNonSepRate" = getSMPlot(unemployed_df,date_filter_start, date_filter_end, "denial_non_rate_per_determination", "Non-Monetary Non-Separation Denial Per Determination","50-state Comparison of Denial Rate for Non-Separation Reasons Per Determination", free_y),
-                    "nonMonNonSepRateInitClaims" = getSMPlot(unemployed_df,date_filter_start, date_filter_end, "denial_non_rate_per_initial_claim", "Non-Monetary Non-Separation Denial Per Initial Claim","50-state Comparison of Denial Rate for Non-Separation Reasons Per Initial Claim", free_y),
-                    "monetaryDeterminations" = getSMPlot(unemployed_df,date_filter_start, date_filter_end, "monetaryDet_mon_eligible_prop", "Proportion Monetarily Eligible","50-state Comparison of Monetary Eligibility Rates", free_y),
-                    "monetaryDeterminations_max_weekly" = getSMPlot(unemployed_df,date_filter_start, date_filter_end, "monetaryDet_max_benefit_prop", "Proportion Receiving Max Weekly Benefit","50-state Comparison of Max Weekly Benefit Rates", free_y),
-                    "monetaryDeterminations_average_weeks" = getSMPlot(unemployed_df,date_filter_start, date_filter_end, "monetaryDet_avg_weeks_duration", "Average Weeks Duration","50-state Comparison of the Average Weeks Duration of Final Payments", free_y),
-                    "TOPS" = getSMPlot(unemployed_df,date_filter_start, date_filter_end, "federal_tax_recovery", "Fed Tax Intercept $","50-state Comparison of Fed Tax Intercepts (Quarterly)", free_y, scale = 1/1000000, prefix = "$", suffix = "M"),
-                    "recipRate" = getSMPlot(unemployed_df, date_filter_start, date_filter_end, "recipiency_annual_total", "Recipiency Rate", "50-state Comparison of UI Recipiency Rate", free_y),
-                    "recipBreakdown" = getSMPlot(unemployed_df,date_filter_start, date_filter_end, "recipiency_annual_total", "Recipiency Rate", "50-state Comparison of UI Recipiency Rates", free_y),
-                    "uirate" = getSMPlot(unemployed_df,date_filter_start, date_filter_end, "unemployment_rate_sa", "Unemployment Rate (Seasonally Adjusted)","50-state Comparison of SA Unemployment Rates", free_y),
-                    "lowerAuthority" = getSMPlot(unemployed_df,date_filter_start, date_filter_end, "lower_Within45Days", "Proportion of Decisions Within 45 Days","50-state Comparison of First Level Appeal Decisions within 45 Days", free_y),
-                    "firstPay" = getSMPlot(unemployed_df,date_filter_start, date_filter_end, "first_time_payment_Within35Days","Proportion of Payments Within 35 Days", "50-state Comparison of First Payments within 35 Days", free_y),
-                    "higherAuthority" = getSMPlot(unemployed_df,date_filter_start, date_filter_end, "higher_Within75Days", "Proportion of Decisions Within 75 Days", "50-state Comparison of Second Level Appeal Decisions within 75 Days", free_y))
+                    "monthlyUI" = getSMPlot(filtered_data(), date_filter_start, date_filter_end, "total_compensated_mov_avg", "Montly UI Payments","50-state Comparison of Total Monthly UI Payments", free_y, scale = 1/1000000, prefix = "", suffix = "M"),
+                    "basicUI_claims" = getSMPlot(filtered_data(), date_filter_start, date_filter_end, "monthly_initial_claims", "Initial Claims","50-state Comparison of Initial UI Claims", free_y),
+                    "basicWeeklyClaims" = getSMPlot(filtered_data(), date_filter_start, date_filter_end, "weekly_initial_claims", "Initial Claims","50-state Comparison of Weekly Initial UI Claims", free_y),
+                    "basicUI_compensated" = getSMPlot(filtered_data(), date_filter_start, date_filter_end, "monthly_weeks_compensated", "Weeks Compensated","50-state Comparison of Weeks of UI Compensated", free_y),
+                    "basicUI_payment_rate" = getSMPlot(filtered_data(), date_filter_start, date_filter_end, "monthly_first_payments_as_prop_claims", "Proportion","50-state Comparison of Initial Payments / Initial Claims", free_y),
+                    "basicUI_workshare_initial" = getSMPlot(filtered_data(), date_filter_start, date_filter_end, "workshare_initial_claims", "Initial Claims","50-state Comparison of Workshare Initial Claims", free_y),
+                    "basicUI_workshare_continued" = getSMPlot(filtered_data(), date_filter_start, date_filter_end, "workshare_continued_claims", "Continued Claims","50-state Comparison of Workshare Continued Claims", free_y),
+                    "demographics_race" = getSMPlot(filtered_data(), date_filter_start, date_filter_end, "demographic_race_prop_black", "Proportion","50-state Comparison of the Proportion of Black Claiamnts", free_y),
+                    "demographics_ethnicity" = getSMPlot(filtered_data(), date_filter_start, date_filter_end, "demographic_eth_prop_latinx", "Proportion","50-state Comparison of the Proportion of Latinx Claiamnts", free_y),
+                    "demographics_age" = getSMPlot(filtered_data(), date_filter_start, date_filter_end, "demographic_age_prop_under25", "Proportion","50-state Comparison of the Proportion of Claiamnts Under 25yo", free_y),
+                    "demographics_sex" = getSMPlot(filtered_data(), date_filter_start, date_filter_end, "demographic_sex_prop_women", "Proportion","50-state Comparison of the Proportion of Female Claiamnts", free_y),
+                    "puaData" = getSMPlot(filtered_data(), date_filter_start, date_filter_end, "pua_percent_eligible", "PUA Eligibility Rate","50-state Comparison of PUA Eligibility Rate", free_y),
+                    "puaClaims" = getSMPlot(filtered_data(), date_filter_start, date_filter_end, "pua_weeks_compensated", "Weeks Compesnated","50-state Comparison of Weeks of PUA Compensated", free_y),
+                    "pucClaims" = getSMPlot(filtered_data(), date_filter_start, date_filter_end, "puc_weeks", "Weeks Compesnated","50-state Comparison of Weeks of PUC Compensated", free_y),
+                    "overvPayments" = getSMPlot(filtered_data(), date_filter_start, date_filter_end, "outstanding_proportion", "Overpayment Balance/Annual UI Payments","50-state Comparison of Outstanding Overpayment Balance as a Proportion of Total UI Paid Annually", free_y),
+                    "fraudvNon" = getSMPlot(filtered_data(),date_filter_start, date_filter_end, "fraud_num_percent", "Fraud/Non-Fraud","50-state Comparison of Fraud vs Non-Fraud UI Overpayemnts", free_y),
+                    "overvRecovery" = getSMPlot(filtered_data(),date_filter_start, date_filter_end, "outstanding", "Overpayment Balance","50-state Comparison of Outstanding State UI Overpayment Balance", free_y, scale = 1/1000000, prefix = "$", suffix = "M"),
+                    "nonMonDen" = getSMPlot(filtered_data(),date_filter_start, date_filter_end, "denial_rate_overall_per_determination", "Non-Monetary Denial Per Determination","50-state Comparison of Denial Rates for Non-Monetary Reasons Per Determination", free_y),
+                    "nonMonDenInitClaims" = getSMPlot(filtered_data(),date_filter_start, date_filter_end, "denial_rate_overall_per_initial_claim", "Non-Monetary Denial Per Initial Claim","50-state Comparison of Denial Rates for Non-Monetary Reasons Per Initial Claim", free_y),
+                    "nonMonSep" = getSMPlot(filtered_data(),date_filter_start, date_filter_end, "denial_sep_percent", "Proportion of all Non-Monetary Determinations","50-state Comparison of Denials for Separation Reasons", free_y),
+                    "nonMonSepRate" = getSMPlot(filtered_data(),date_filter_start, date_filter_end, "denial_sep_rate_per_determination", "Non-Monetary Separation Denial Per Determination","50-state Comparison of Denial Rate for Separation Reasons Per Determination", free_y),
+                    "nonMonSepRateInitClaims" = getSMPlot(filtered_data(),date_filter_start, date_filter_end, "denial_sep_rate_per_initial_claim", "Non-Monetary Separation Denial Per Initial Claim","50-state Comparison of Denial Rate for Separation Reasons Per Initial Claim", free_y),
+                    "nonMonNonSep" = getSMPlot(filtered_data(),date_filter_start, date_filter_end, "denial_non_percent_per_determination", "Proportion of all Non-Monetary Determinations","50-state Comparison of Denials for Non-Separation Reasons", free_y),
+                    "nonMonNonSepRate" = getSMPlot(filtered_data(),date_filter_start, date_filter_end, "denial_non_rate_per_determination", "Non-Monetary Non-Separation Denial Per Determination","50-state Comparison of Denial Rate for Non-Separation Reasons Per Determination", free_y),
+                    "nonMonNonSepRateInitClaims" = getSMPlot(filtered_data(),date_filter_start, date_filter_end, "denial_non_rate_per_initial_claim", "Non-Monetary Non-Separation Denial Per Initial Claim","50-state Comparison of Denial Rate for Non-Separation Reasons Per Initial Claim", free_y),
+                    "monetaryDeterminations" = getSMPlot(filtered_data(),date_filter_start, date_filter_end, "monetaryDet_mon_eligible_prop", "Proportion Monetarily Eligible","50-state Comparison of Monetary Eligibility Rates", free_y),
+                    "monetaryDeterminations_max_weekly" = getSMPlot(filtered_data(),date_filter_start, date_filter_end, "monetaryDet_max_benefit_prop", "Proportion Receiving Max Weekly Benefit","50-state Comparison of Max Weekly Benefit Rates", free_y),
+                    "monetaryDeterminations_average_weeks" = getSMPlot(filtered_data(),date_filter_start, date_filter_end, "monetaryDet_avg_weeks_duration", "Average Weeks Duration","50-state Comparison of the Average Weeks Duration of Final Payments", free_y),
+                    "TOPS" = getSMPlot(filtered_data(),date_filter_start, date_filter_end, "federal_tax_recovery", "Fed Tax Intercept $","50-state Comparison of Fed Tax Intercepts (Quarterly)", free_y, scale = 1/1000000, prefix = "$", suffix = "M"),
+                    "recipRate" = getSMPlot(filtered_data(), date_filter_start, date_filter_end, "recipiency_annual_total", "Recipiency Rate", "50-state Comparison of UI Recipiency Rate", free_y),
+                    "recipBreakdown" = getSMPlot(filtered_data(),date_filter_start, date_filter_end, "recipiency_annual_total", "Recipiency Rate", "50-state Comparison of UI Recipiency Rates", free_y),
+                    "uirate" = getSMPlot(filtered_data(),date_filter_start, date_filter_end, "unemployment_rate_sa", "Unemployment Rate (Seasonally Adjusted)","50-state Comparison of SA Unemployment Rates", free_y),
+                    "lowerAuthority" = getSMPlot(filtered_data(),date_filter_start, date_filter_end, "lower_Within45Days", "Proportion of Decisions Within 45 Days","50-state Comparison of First Level Appeal Decisions within 45 Days", free_y),
+                    "firstPay" = getSMPlot(filtered_data(),date_filter_start, date_filter_end, "first_time_payment_Within35Days","Proportion of Payments Within 35 Days", "50-state Comparison of First Payments within 35 Days", free_y),
+                    "higherAuthority" = getSMPlot(filtered_data(),date_filter_start, date_filter_end, "higher_Within75Days", "Proportion of Decisions Within 75 Days", "50-state Comparison of Second Level Appeal Decisions within 75 Days", free_y))
     
     return(smPlot)
   })
@@ -1468,41 +1475,41 @@ server <- function(input, output) {
   # render the small multiple plot
   output$fiftyStatePlot <- renderPlot({
     fiftyStatePlot <- switch(input$viewData,
-                     "monthlyUI" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "total_compensated_mov_avg", input$state, "Monthly UI Payments",paste(input$state, "vs. US: Total Monthly UI Payments"), scale = 1/1000000, prefix = "", suffix = "M"),
-                     "basicUI_claims" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "monthly_initial_claims", input$state, "Initial Claims",paste(input$state, "vs. US: Monthly Initial Claims")),
-                     "basicWeeklyClaims" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "weekly_initial_claims", input$state, "Initial Claims",paste(input$state, "vs. US: Weekly Initial Claims")),
-                     "basicUI_compensated" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "monthly_weeks_compensated", input$state, "Weeks Compensated",paste(input$state, "vs. US: Monthly Weeks Compensated")),
-                     "basicUI_payment_rate" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "monthly_first_payments_as_prop_claims", input$state, "Proportion",paste(input$state, "vs. US: First Payments / Initial Claims")),
-                     "basicUI_workshare_initial" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "workshare_initial_claims", input$state, "Initial Claims",paste(input$state, "vs. US: Workshare Initial Claims")),
-                     "basicUI_workshare_continued" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "workshare_continued_claims", input$state, "Continued Claims",paste(input$state, "vs. US: Workshare Continued Claims")),
-                     "demographics_race" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "demographic_race_prop_black", input$state, "Proportion",paste(input$state, "vs. US: % Black Claimants")),
-                     "demographics_ethnicity" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "demographic_eth_prop_latinx", input$state, "Proportion",paste(input$state, "vs. US: % Latinx Claimants")),
-                     "demographics_sex" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "demographic_sex_prop_women", input$state, "Proportion",paste(input$state, "vs. US: % Female Claimants")),
-                     "demographics_age" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "demographic_age_prop_under25", input$state, "Proportion",paste(input$state, "vs. US: % Claimants Under 25yo")),
-                     "puaData" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "pua_percent_eligible", input$state, "PUA Eligibility Rate",paste(input$state, "vs. US: PUA Eligibility Rate")),
-                     "puaClaims" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "pua_weeks_compensated", input$state, "Weeks Compensated",paste(input$state, "vs. US: Weeks of PUA Compensated")),
-                     "pucClaims" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "puc_weeks", input$state, "Weeks Compensated",paste(input$state, "vs. US: Weeks of PUC Compensated")),
-                     "overvPayments" = get50StateComparisonPlot(unemployed_df, date_filter_start, date_filter_end, "outstanding_proportion", input$state, "Overpayment Balance/Annual UI Payments",paste(input$state, "vs. US: Outstanding Overpayment Balance as a Proportion of Total UI Paid Annually")),
-                     "fraudvNon" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "fraud_num_percent", input$state, "Fraud/Non-Fraud",paste(input$state, "vs. US: Fraud / Non-Fraud UI Overpayemnts")),
-                     "overvRecovery" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "outstanding", input$state, "Overpayment Balance",paste(input$state, "vs. US: Outstanding UI Overpayment Balance"), scale = 1/1000000, prefix = "$", suffix = "M"),
-                     "nonMonDen" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "denial_rate_overall_per_determination", input$state, "Non-Monetary Denial Per Determination",paste(input$state, "vs. US: Denial Rates for Non-Monetary Reasons Per Determination")),
-                     "nonMonDenInitClaims" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "denial_rate_overall_per_initial_claim", input$state, "Non-Monetary Denial Per Initial Claim",paste(input$state, "vs. US: Denial Rates for Non-Monetary Reasons Per Initial Claim")),
-                     "nonMonSep" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "denial_sep_percent", input$state, "Proportion of all Non-Monetary Determinations",paste(input$state, "vs. US: Denials for Separation Reasons")),
-                     "nonMonSepRate" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "denial_sep_rate_per_determination", input$state, "Non-Monetary Separation Denial Per Determination",paste(input$state, "vs. US: Denial Rate for Separation Reasons Per Determination")),
-                     "nonMonSepRateInitClaims" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "denial_sep_rate_per_initial_claim", input$state, "Non-Monetary Separation Denial Per Initial Claim",paste(input$state, "vs. US: Denial Rate for Separation Reasons Per Initial Claim")),
-                     "nonMonNonSep" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "denial_non_percent_per_determination", input$state, "Proportion of all Non-Monetary Determinations",paste(input$state, "vs. US: Denials for Non-Separation Reasons")),
-                     "nonMonNonSepRate" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "denial_non_rate_per_determination", input$state, "Non-Monetary Non-Separation Denial Per Determination",paste(input$state, "vs. US: Denial Rate for Non-Separation Reasons Per Determination")),
-                     "nonMonNonSepRateInitClaims" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "denial_non_rate_per_initial_claim", input$state, "Non-Monetary Non-Separation Denial Per Initial Claim",paste(input$state, "vs. US: Denial Rate for Non-Separation Reasons Per Initial Claim")),
-                     "monetaryDeterminations" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "monetaryDet_mon_eligible_prop", input$state, "Monetary Eligibility Rate",paste(input$state, "vs. US: Monetary Eligibility Rate")),
-                     "monetaryDeterminations_max_weekly" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "monetaryDet_max_benefit_prop", input$state, "Max Weekly Benefit Eligibility Rate",paste(input$state, "vs. US: Max Weekly Benefit Eligibility Rate")),
-                     "monetaryDeterminations_average_weeks" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "monetaryDet_avg_weeks_duration", input$state, "Average Weeks Duration",paste(input$state, "vs. US: Average Weeks Duration")),
-                     "TOPS" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "federal_tax_recovery", input$state, "Fed Tax Intercept $",paste(input$state, "vs. US: Fed Tax Intercepts (Quarterly)"), scale = 1/1000000, prefix = "$", suffix = "M"),
-                     "recipRate" = get50StateComparisonPlot(unemployed_df, date_filter_start, date_filter_end, "recipiency_annual_total", input$state, "Recipiency Rate", paste(input$state, "vs. US: UI Recipiency Rate")),
-                     "recipBreakdown" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "recipiency_annual_total", input$state, "Recipiency Rate", paste(input$state, "vs. US: UI Recipiency Rates")),
-                     "uirate" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "unemployment_rate_sa", input$state, "Unemployment Rate",paste(input$state, "vs. US: Seasonally Adjusted Unemployment Rates")),
-                     "lowerAuthority" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "lower_Within45Days", input$state, "Proportion of Decisions Within 45 Days", paste(input$state, "vs. US: First Level Appeal Decisions within 45 Days")),
-                     "firstPay" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "first_time_payment_Within35Days", input$state, "Proportion of Payments Within 35 Days", paste(input$state, "vs. US: First Payments within 35 Days")),
-                     "higherAuthority" = get50StateComparisonPlot(unemployed_df,date_filter_start, date_filter_end, "higher_Within75Days", input$state, "Proportion of Decisions Within 75 Days", paste(input$state, "vs. US: Second Level Appeal Decisions within 75 Days")))
+                     "monthlyUI" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "total_compensated_mov_avg", input$state, "Monthly UI Payments",paste(input$state, "vs. US: Total Monthly UI Payments"), scale = 1/1000000, prefix = "", suffix = "M"),
+                     "basicUI_claims" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "monthly_initial_claims", input$state, "Initial Claims",paste(input$state, "vs. US: Monthly Initial Claims")),
+                     "basicWeeklyClaims" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "weekly_initial_claims", input$state, "Initial Claims",paste(input$state, "vs. US: Weekly Initial Claims")),
+                     "basicUI_compensated" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "monthly_weeks_compensated", input$state, "Weeks Compensated",paste(input$state, "vs. US: Monthly Weeks Compensated")),
+                     "basicUI_payment_rate" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "monthly_first_payments_as_prop_claims", input$state, "Proportion",paste(input$state, "vs. US: First Payments / Initial Claims")),
+                     "basicUI_workshare_initial" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "workshare_initial_claims", input$state, "Initial Claims",paste(input$state, "vs. US: Workshare Initial Claims")),
+                     "basicUI_workshare_continued" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "workshare_continued_claims", input$state, "Continued Claims",paste(input$state, "vs. US: Workshare Continued Claims")),
+                     "demographics_race" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "demographic_race_prop_black", input$state, "Proportion",paste(input$state, "vs. US: % Black Claimants")),
+                     "demographics_ethnicity" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "demographic_eth_prop_latinx", input$state, "Proportion",paste(input$state, "vs. US: % Latinx Claimants")),
+                     "demographics_sex" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "demographic_sex_prop_women", input$state, "Proportion",paste(input$state, "vs. US: % Female Claimants")),
+                     "demographics_age" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "demographic_age_prop_under25", input$state, "Proportion",paste(input$state, "vs. US: % Claimants Under 25yo")),
+                     "puaData" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "pua_percent_eligible", input$state, "PUA Eligibility Rate",paste(input$state, "vs. US: PUA Eligibility Rate")),
+                     "puaClaims" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "pua_weeks_compensated", input$state, "Weeks Compensated",paste(input$state, "vs. US: Weeks of PUA Compensated")),
+                     "pucClaims" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "puc_weeks", input$state, "Weeks Compensated",paste(input$state, "vs. US: Weeks of PUC Compensated")),
+                     "overvPayments" = get50StateComparisonPlot(filtered_data(), date_filter_start, date_filter_end, "outstanding_proportion", input$state, "Overpayment Balance/Annual UI Payments",paste(input$state, "vs. US: Outstanding Overpayment Balance as a Proportion of Total UI Paid Annually")),
+                     "fraudvNon" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "fraud_num_percent", input$state, "Fraud/Non-Fraud",paste(input$state, "vs. US: Fraud / Non-Fraud UI Overpayemnts")),
+                     "overvRecovery" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "outstanding", input$state, "Overpayment Balance",paste(input$state, "vs. US: Outstanding UI Overpayment Balance"), scale = 1/1000000, prefix = "$", suffix = "M"),
+                     "nonMonDen" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "denial_rate_overall_per_determination", input$state, "Non-Monetary Denial Per Determination",paste(input$state, "vs. US: Denial Rates for Non-Monetary Reasons Per Determination")),
+                     "nonMonDenInitClaims" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "denial_rate_overall_per_initial_claim", input$state, "Non-Monetary Denial Per Initial Claim",paste(input$state, "vs. US: Denial Rates for Non-Monetary Reasons Per Initial Claim")),
+                     "nonMonSep" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "denial_sep_percent", input$state, "Proportion of all Non-Monetary Determinations",paste(input$state, "vs. US: Denials for Separation Reasons")),
+                     "nonMonSepRate" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "denial_sep_rate_per_determination", input$state, "Non-Monetary Separation Denial Per Determination",paste(input$state, "vs. US: Denial Rate for Separation Reasons Per Determination")),
+                     "nonMonSepRateInitClaims" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "denial_sep_rate_per_initial_claim", input$state, "Non-Monetary Separation Denial Per Initial Claim",paste(input$state, "vs. US: Denial Rate for Separation Reasons Per Initial Claim")),
+                     "nonMonNonSep" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "denial_non_percent_per_determination", input$state, "Proportion of all Non-Monetary Determinations",paste(input$state, "vs. US: Denials for Non-Separation Reasons")),
+                     "nonMonNonSepRate" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "denial_non_rate_per_determination", input$state, "Non-Monetary Non-Separation Denial Per Determination",paste(input$state, "vs. US: Denial Rate for Non-Separation Reasons Per Determination")),
+                     "nonMonNonSepRateInitClaims" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "denial_non_rate_per_initial_claim", input$state, "Non-Monetary Non-Separation Denial Per Initial Claim",paste(input$state, "vs. US: Denial Rate for Non-Separation Reasons Per Initial Claim")),
+                     "monetaryDeterminations" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "monetaryDet_mon_eligible_prop", input$state, "Monetary Eligibility Rate",paste(input$state, "vs. US: Monetary Eligibility Rate")),
+                     "monetaryDeterminations_max_weekly" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "monetaryDet_max_benefit_prop", input$state, "Max Weekly Benefit Eligibility Rate",paste(input$state, "vs. US: Max Weekly Benefit Eligibility Rate")),
+                     "monetaryDeterminations_average_weeks" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "monetaryDet_avg_weeks_duration", input$state, "Average Weeks Duration",paste(input$state, "vs. US: Average Weeks Duration")),
+                     "TOPS" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "federal_tax_recovery", input$state, "Fed Tax Intercept $",paste(input$state, "vs. US: Fed Tax Intercepts (Quarterly)"), scale = 1/1000000, prefix = "$", suffix = "M"),
+                     "recipRate" = get50StateComparisonPlot(filtered_data(), date_filter_start, date_filter_end, "recipiency_annual_total", input$state, "Recipiency Rate", paste(input$state, "vs. US: UI Recipiency Rate")),
+                     "recipBreakdown" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "recipiency_annual_total", input$state, "Recipiency Rate", paste(input$state, "vs. US: UI Recipiency Rates")),
+                     "uirate" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "unemployment_rate_sa", input$state, "Unemployment Rate",paste(input$state, "vs. US: Seasonally Adjusted Unemployment Rates")),
+                     "lowerAuthority" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "lower_Within45Days", input$state, "Proportion of Decisions Within 45 Days", paste(input$state, "vs. US: First Level Appeal Decisions within 45 Days")),
+                     "firstPay" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "first_time_payment_Within35Days", input$state, "Proportion of Payments Within 35 Days", paste(input$state, "vs. US: First Payments within 35 Days")),
+                     "higherAuthority" = get50StateComparisonPlot(filtered_data(),date_filter_start, date_filter_end, "higher_Within75Days", input$state, "Proportion of Decisions Within 75 Days", paste(input$state, "vs. US: Second Level Appeal Decisions within 75 Days")))
     return(fiftyStatePlot)
   })
 
