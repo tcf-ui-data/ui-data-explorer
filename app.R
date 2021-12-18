@@ -39,7 +39,7 @@ p$set_read_dictionary(1, T)
 p$set_read_dictionary(3, T)
 
 stored_data_location <- file.path(get("DATA_DIR"), "unemployment_data.parquet")
-unemployed_df <- arrow::read_parquet(stored_data_location)
+unemployed_df <- arrow::read_parquet(stored_data_location, props = p)
 
 maxDate <- max(unemployed_df$rptdate)
 minDate <- min(unemployed_df$rptdate)
