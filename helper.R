@@ -95,9 +95,7 @@ getSMPlot <- function(df, startDate, endDate, measure, yLabel, plotTitle, free_y
   
   # start by filtering the df to the right time period and to the right metric
   df <- df %>% 
-    filter(rptdate >= startDate, 
-           rptdate <= endDate, 
-           metric == measure)
+    filter(metric == measure)
   
   # small multiple plot
   smPlot  <- df %>% 
@@ -133,9 +131,7 @@ get50StateComparisonPlot <- function(df, startDate, endDate, measure, highlightS
 { 
   
   df <- df %>% 
-    filter(rptdate >= startDate, 
-           rptdate <= endDate, 
-           metric == measure)
+    filter(metric == measure)
   
   plot <- df %>% 
     ggplot(aes(x = rptdate, y = value, color = st)) +
