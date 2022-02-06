@@ -405,10 +405,10 @@ get_pua_data <- function() {
     select(-starts_with("c"))
 }
 
-# puc $600 payments
-get_puc_600_data <- function() {
+# trust fund solvency and puc $600 payments
+get_ui_financial_data <- function() {
   df <- downloadUCData("https://oui.doleta.gov/unemploy/csv/ar2112.csv") %>%   # ar2112 data 
-    rename(puc_payments = c125, puc_payments_total = c124) %>%  #,pua_payments = c128) pua_payments doesn't yet exist!
+    rename(trust_fund_balance = c3, puc_payments = c125, puc_payments_total = c124) %>%  #,pua_payments = c128) pua_payments doesn't yet exist!
     select(-starts_with("c")) %>% 
     mutate(puc_weeks = puc_payments_total / 600)
   
@@ -434,7 +434,7 @@ get_basic_ui_information <- function() {
   ucClaimsPaymentsEUC08 <- downloadUCData("https://oui.doleta.gov/unemploy/csv/au5159.csv") #5159 report
   ucClaimsPaymentsWorksharing <- downloadUCData("https://oui.doleta.gov/unemploy/csv/aw5159.csv")
   ucClaimsPaymentsPEUC20 <- downloadUCData("https://oui.doleta.gov/unemploy/csv/ap5159.csv") # 5159 report
-  ucClaimsPaymentsPUC20 <- get_puc_600_data()
+  ucClaimsPaymentsPUC20 <- get_ui_financial_data()
   ucClaimsPaymentsPUA20 <- get_pua_data()
 
   # EUC data from the 80s isn't available on the DOL website, but DOL provided a copy of those claims
@@ -447,6 +447,10 @@ get_basic_ui_information <- function() {
     rename(monthly_initial_claims = c1,
            monthly_initial_additional_intrastate = c3,
            monthly_first_payments = c51,
+           monthly_first_payments_intrastate = c52,
+           monthly_first_payments_interstate = c53,
+           monthly_first_payments_ufce = c54,
+           monthly_first_payments_ucx = c55,
            monthly_weeks_compensated = c38,
            monthly_exhaustion = c56,
            monthly_exhaustion_ufce = c57,
@@ -528,7 +532,11 @@ get_basic_ui_information <- function() {
            euc08_ucx_intrastate = c24, 
            euc08_ucx_liable = c27,
            euc08_state_compensated = c35, 
-           euc08_ucfe_ucx_compensated = c37) %>% 
+           euc08_ucfe_ucx_compensated = c37,
+           euc_second_tier_state_compensated = c57, 
+           euc_second_tier_ucfe_ucx_compensated = c59, 
+           euc_third_tier_state_compensated = c73,
+           euc_third_tier_ucfe_ucx_compensated = c75) %>% 
     select(-starts_with("c"))
   
   ucClaimsPaymentsWorksharing <- ucClaimsPaymentsWorksharing %>% 
@@ -606,7 +614,7 @@ get_basic_ui_information <- function() {
 # accepts as a parameter bls_unemployment data
 getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
 {
-  
+  browser()
   message("Getting recipency")
   message("columns of bls_unemployed:")
   message(names(bls_unemployed))
@@ -940,8 +948,8 @@ getUCAppealsTimeLapseLower <- function(ucBenefitAppealsRegular) {
   
   # set some names
   ucAppealsTimeLapseLower <- ucAppealsTimeLapseLower %>% 
-    rename_at(vars(c("c1", "c4", "c7")), 
-           ~ c("total_lower_appeals", "x0x30", "x31x45"))
+    rename_at(vars(c("c1", "c4", "c7", "c9")), 
+           ~ c("total_lower_appeals", "x0x30", "x31x45", "first_level_appeal_average_age"))
   ucAppealsCaseAgingLower <- ucAppealsCaseAgingLower %>% rename(lower_appeals_total_outstanding = c1)
   
   # calculate some values
@@ -1205,7 +1213,7 @@ ucAppealsTimeLapseHigher <- getucAppealsTimeLapseHigher()
 # PUA data (pandemic unemployment 2020)
 message("collecting PUA data")
 pua_claims <- get_pua_data()
-#puc_payments <- get_puc_600_data()
+#puc_payments <- get_ui_financial_data()
 
 # get UC recipiency and overpayments\
 message("Collecting UC Recipiency")
