@@ -1228,7 +1228,7 @@ ucOverpayments$total_paid_annual_mov_avg <- ucOverpayments$total_compensated_mov
 ucRecipiency$total_paid_annual_mov_avg <- ucRecipiency$total_compensated_mov_avg*12
 # the distinct gets rid of a single repeated entry
 ucOverpayments$outstanding_proportion <- round(ucOverpayments$outstanding / ucOverpayments$total_paid_annual_mov_avg,4) 
-
+ 
 # get determination data
 message("Collecting NonMonetary Information")
 ucNonMonetary <- getNonMonetaryDeterminations(ucClaimsPaymentsMonthly, pua_claims)
