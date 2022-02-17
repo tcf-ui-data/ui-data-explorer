@@ -400,7 +400,8 @@ get_pua_data <- function() {
     ) %>% 
     mutate(pua_percent_eligible =  pua_eligible_total / pua_initial_applications_total,
            pua_percent_applicants_self_employed = pua_initial_applications_self / pua_initial_applications_total,
-           pua_percent_eligible_self_employed = pua_eligible_self / pua_initial_applications_self
+           pua_percent_eligible_self_employed = pua_eligible_self / pua_initial_applications_self,
+           monthly_pua_first_payments = pua_first_payments
     ) %>% 
     select(-starts_with("c"))
 }
@@ -419,8 +420,6 @@ get_ui_financial_data <- function() {
   
   df <- df %>% 
     bind_rows(usAvg %>% mutate(st = "US (avg)"))
-
-  
 }
 
 
@@ -467,6 +466,7 @@ get_basic_ui_information <- function() {
     mutate(monthly_weeks_claimed = c22 + monthly_state_intrastate,
            monthly_partial_weeks_compensated = monthly_weeks_compensated - c39,
            monthly_first_payments_as_prop_claims = monthly_first_payments / monthly_initial_claims,
+           monthly_state_first_payments = monthly_first_payments + monthly_first_payments_ufce + monthly_first_payments_ucx,
            monthly_exhaustion_total = monthly_exhaustion + monthly_exhaustion_ucx + monthly_exhaustion_ufce) %>% 
     select(-starts_with("c"))
   
@@ -614,7 +614,6 @@ get_basic_ui_information <- function() {
 # accepts as a parameter bls_unemployment data
 getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
 {
-  browser()
   message("Getting recipency")
   message("columns of bls_unemployed:")
   message(names(bls_unemployed))
@@ -957,7 +956,7 @@ getUCAppealsTimeLapseLower <- function(ucBenefitAppealsRegular) {
     mutate(
       lower_Within30Days = round(x0x30 / total_lower_appeals, 3),
       lower_Within45Days = round((x0x30 + x31x45) / total_lower_appeals, 3)) %>% 
-    select(st, rptdate, total_lower_appeals, lower_Within30Days, lower_Within45Days)
+    select(st, rptdate, total_lower_appeals, lower_Within30Days, lower_Within45Days, first_level_appeal_average_age)
   
   # need to add EUC and EB into this, but not now
   ucAppealsTimeLapseLower <- ucAppealsTimeLapseLower %>% 
@@ -1063,6 +1062,33 @@ get_total_payments_since_march_2020 <- function(basic_ui_data, pua_data) {
               "Most Recent Data" = max(rptdate))
 }
 
+# gets, on an annulaized basis, the amount folks were paid divided by the # of first time claims
+# in that year
+get_average_total_benefits_paid <- function(basic_ui_data, start_date = "2005-01-01", end_date = today()) {
+  
+  # calculate the average paid/claim
+  basic_ui_data <- basic_ui_data %>% 
+    filter(rptdate >= start_date,
+           rptdate <= end_date) %>% 
+    mutate(year = year(rptdate)) %>% 
+    group_by(year, st) %>% 
+    summarize(annual_benefits_paid = sum(monthly_state_compensated, monthly_ucfe_ucx_compensated),
+              annual_first_payments = sum(monthly_state_first_payments)) %>% 
+    ungroup() %>% 
+    mutate(annual_avg_benefits_paid = annual_benefits_paid / annual_first_payments)
+  
+  # get us averages
+  usAvg <- basic_ui_data %>% 
+    group_by(year) %>% 
+    summarize(across(where(is.numeric), function(x) round(mean(x, na.rm = T), 3))) # %>% 
+
+  
+  # add the average back into the main df
+  basic_ui_data %>% 
+    bind_rows(usAvg %>% mutate(st = "US (avg)")) %>% 
+    mutate(st = as.factor(st))
+}
+  
 # writes to a csv file named filename all columns in the DF prefixed by prefix
 write_data_as_csv <- function(df, filename, metric_filter) {
   df %>% 
@@ -1136,22 +1162,41 @@ write_data_as_sheet <- function(df, sheet_name, tab, metric_filter) {
 }
 
 # write a series of dfs to a google sheet
-write_to_google_sheets <- function(df_all, df_total_payments, sheet_name) {
+write_to_google_sheets <- function(df_all, df_total_payments, average_total_benefits_df, sheet_name) {
   
-  message("Writing First Time Payments to Google Sheets")
-  df_all %>% 
-    write_data_as_sheet(sheet_name, "Back End First Time Payments", "^first_time")
-  
-  message("Writing Benefit Exaustions to Google Sheets")
-  df_all %>% 
-    write_data_as_sheet(sheet_name, "Back End 4.4 Benefit Exhaustions", "^monthly_exhaustion_total")
+  # message("Writing First Time Payments to Google Sheets")
+  # df_all %>% 
+  #   write_data_as_sheet(sheet_name, "Back End First Time Payments", "^first_time")
 
-  message("Writing Non-monetary determination time lapse to Google Sheets")
+  message("Writing Monthly First Time Payments to Google Sheets")
   df_all %>% 
-    write_data_as_sheet(sheet_name, "Back End 1.2 Nonmonetary Separations", "nonmon_det.*prop")
+    filter(rptdate >= "2005-01-01") %>% 
+    write_data_as_sheet(sheet_name, "Back End Monthly First Time Payments", "monthly_state_first|monthly_pua_first")
   
-  message("Writing Total Payments to Google Sheets")
-  df_total_payments %>% write_sheet(sheet_name, "Back End 3.2 Total Payments Since March 2020")
+  message("Writing Average Annual Benefits Paid to Google Sheets")
+  average_total_benefits_df %>% 
+    write_data_as_sheet(sheet_name, "Back End Annual Average Benefits Paid", "^annual_")
+  
+  message("Writing Back End Appeals Aging to Google Sheets")
+  df_all %>% 
+    filter(rptdate >= "2000-01-01") %>% 
+    write_data_as_sheet(sheet_name, "Back End Appeals Aging", "^first_level_appeal_average_age")
+  
+  message("Writing Back End Trust Fund Balance to Google Sheets")
+  df_all %>% 
+    filter(rptdate >= "2005-01-01") %>% 
+    write_data_as_sheet(sheet_name, "Back End Trust Fund Balance", "^trust_fund_balance")
+  
+  # message("Writing Benefit Exaustions to Google Sheets")
+  # df_all %>% 
+  #   write_data_as_sheet(sheet_name, "Back End 4.4 Benefit Exhaustions", "^monthly_exhaustion_total")
+  # 
+  # message("Writing Non-monetary determination time lapse to Google Sheets")
+  # df_all %>% 
+  #   write_data_as_sheet(sheet_name, "Back End 1.2 Nonmonetary Separations", "nonmon_det.*prop")
+  # 
+  # message("Writing Total Payments to Google Sheets")
+  # df_total_payments %>% write_sheet(sheet_name, "Back End 3.2 Total Payments Since March 2020")
 
 }
 
@@ -1236,7 +1281,7 @@ ucOverpayments$total_paid_annual_mov_avg <- ucOverpayments$total_compensated_mov
 ucRecipiency$total_paid_annual_mov_avg <- ucRecipiency$total_compensated_mov_avg*12
 # the distinct gets rid of a single repeated entry
 ucOverpayments$outstanding_proportion <- round(ucOverpayments$outstanding / ucOverpayments$total_paid_annual_mov_avg,4) 
- 
+
 # get determination data
 message("Collecting NonMonetary Information")
 ucNonMonetary <- getNonMonetaryDeterminations(ucClaimsPaymentsMonthly, pua_claims)
@@ -1246,7 +1291,7 @@ ucMonetary <- getMonetaryDeterminations()
 
 # data for the google sheet that isn't already above
 total_payments_since_march_2020 <- get_total_payments_since_march_2020(ucClaimsPaymentsMonthly, pua_claims)
-
+average_total_benefits_paid <- get_average_total_benefits_paid(ucClaimsPaymentsMonthly, start_date = "2005-01-01", end_date = today())
 
 # make long-uberdf
 unemployment_df <- 
@@ -1275,5 +1320,5 @@ gs4_auth(path = rawToChar(json))
 
 # then write to the sheet
 message("Writing to Google Sheets")
-write_to_google_sheets(unemployment_df, total_payments_since_march_2020, sheet_name)
+write_to_google_sheets(unemployment_df, total_payments_since_march_2020, average_total_benefits_paid, sheet_name)
 
