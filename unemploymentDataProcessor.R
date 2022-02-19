@@ -674,6 +674,13 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
     # 12 month moving averages of the above
     group_by(st) %>% 
     mutate(
+      # two different ways to get a weekly number
+      ## first we sum the last 12 months of payments and then divide by 52 to get an average weekly amount from the last year
+      reg_total_annual_mov_average_per_week = rollsum(reg_total, k = 12, align = "right", na.pad = T) / 52,
+      fed_total_annual_mov_average_per_week = rollsum(fed_total, k = 12, align = "right", na.pad = T) / 52,
+
+      ## second we compute an average of teh last 12 months of payments and then divide by the number of weeks
+      ## in this month.  These claculations should be very similar, but may differ a bit
       reg_total_week_mov_avg = rollmean(reg_total_week, k = 12, align = "right", na.pad = T),
       fed_total_week_mov_avg = rollmean(fed_total_week, k = 12, align = "right", na.pad = T),
       total_week_mov_avg = rollmean(total_week, k = 12, align = "right", na.pad = T),
@@ -702,15 +709,22 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
   ucRecipiency <- ucRecipiency %>% 
     bind_rows(usAvg %>% mutate(st = "US (avg)")) %>%
     mutate(
-      # get recipiency rates
+      # get recipiency rates using both sets of weekly avg numbers
+      ## first the method 1 numbers
+      recipiency_annual_per_week_reg = round(reg_total_annual_mov_average_per_week / unemployed_avg,3),
+      recipiency_annual_per_week_fed = round(fed_total_annual_mov_average_per_week / unemployed_avg,3),
+      recipiency_annual_per_week_total = recipiency_annual_per_week_reg + recipiency_annual_per_week_fed,
+
+      ## second the method 2 numbers
       recipiency_annual_reg = round(reg_total_week_mov_avg / unemployed_avg,3),
       recipiency_annual_total = round(total_week_mov_avg / unemployed_avg, 3),
       recipiency_annual_fed = recipiency_annual_total - recipiency_annual_reg) %>% 
     replace(is.na(.), 0) %>% 
     # select just the cols that we need
-    select(st,rptdate,total_week_mov_avg, unemployed_avg, recipiency_annual_reg, recipiency_annual_fed, recipiency_annual_total, total_state_compensated_mov_avg,
-           total_week_mov_avg, total_compensated, total_federal_compensated_mov_avg, total_state_compensated, total_federal_compensated,
-           total_compensated_mov_avg)
+    select(st, rptdate, total_week_mov_avg, unemployed_avg, reg_total_week_mov_avg, fed_total_week_mov_avg, recipiency_annual_reg, recipiency_annual_fed, 
+           recipiency_annual_total, total_state_compensated_mov_avg, total_week_mov_avg, total_compensated, 
+           total_federal_compensated_mov_avg, total_state_compensated, total_federal_compensated,
+           total_compensated_mov_avg, reg_total_annual_mov_average_per_week, fed_total_annual_mov_average_per_week, recipiency_annual_per_week_reg, recipiency_annual_per_week_fed, recipiency_annual_per_week_total)
 
   return(ucRecipiency)
 }
@@ -1207,44 +1221,49 @@ write_data_as_sheet <- function(df, sheet_name, tab, metric_filter) {
 
 # write a series of dfs to a google sheet
 write_to_google_sheets <- function(df_all, df_google, sheet_name) {
-  
-  # message("Writing First Time Payments to Google Sheets")
-  # df_all %>% 
-  #   write_data_as_sheet(sheet_name, "Back End First Time Payments", "^first_time")
-
-  message("Writing Monthly First Time Payments to Google Sheets")
-  df_all %>% 
-    filter(rptdate >= "2005-01-01") %>% 
-    write_data_as_sheet(sheet_name, "Back End Monthly First Time Payments", "monthly_state_first|monthly_pua_first")
-  
+#   
+#   # message("Writing First Time Payments to Google Sheets")
+#   # df_all %>% 
+#   #   write_data_as_sheet(sheet_name, "Back End First Time Payments", "^first_time")
+# 
+#   message("Writing Monthly First Time Payments to Google Sheets")
+#   df_all %>% 
+#     filter(rptdate >= "2005-01-01") %>% 
+#     write_data_as_sheet(sheet_name, "Back End Monthly First Time Payments", "monthly_state_first|monthly_pua_first")
+#   
   message("Writing Average Annual Benefits Paid to Google Sheets")
-  df_google %>% 
+  df_google %>%
     write_data_as_sheet(sheet_name, "Back End Annual Average Benefits Paid", "^annual_")
 
   message("Writing Back End Appeals Aging to Google Sheets")
-  df_all %>% 
-    filter(rptdate >= "2000-01-01") %>% 
+  df_all %>%
+    filter(rptdate >= "2000-01-01") %>%
     write_data_as_sheet(sheet_name, "Back End Appeals Aging", "^first_level_appeal_average_age")
-  
+
   message("Writing Back End Nonmonetary Determination Timeliness to Google Sheets")
-  df_all %>% 
-    filter(rptdate >= "2000-01-01") %>% 
+  df_all %>%
+    filter(rptdate >= "2000-01-01") %>%
     write_data_as_sheet(sheet_name, "Back End Non-monetary Appeals Timeliness", "^nonmon.*intrastate")
-  
+
   message("Writing Back End Trust Fund Balance to Google Sheets")
-  df_all %>% 
-    filter(rptdate >= "2005-01-01") %>% 
+  df_all %>%
+    filter(rptdate >= "2005-01-01") %>%
     write_data_as_sheet(sheet_name, "Back End Trust Fund Balance", "^trust_fund_balance")
-  
+
   message("Writing Back End Demographic Information to Google Sheets")
-  df_all %>% 
-    filter(rptdate >= "2005-01-01") %>% 
+  df_all %>%
+    filter(rptdate >= "2005-01-01") %>%
     write_data_as_sheet(sheet_name, "Back End Demographic Info", "^demographic.*_12m_avg.*$")
-  
+
   message("Writing Back End Annual Denial Rate to Google Sheets")
-  df_google %>% 
+  df_google %>%
     write_data_as_sheet(sheet_name, "Back End Annual Denial Rate", "^denial_|initial_claims_annual")
-  
+
+  message("Writing Back End Recipiency Rates to Google Sheets")
+  df_all %>%
+    filter(rptdate >= "2005-01-01") %>%
+    write_data_as_sheet(sheet_name, "Back End Recipiency Rate", "^unemployed_avg|^reg_total_week_mov_avg$|^fed_total_week_mov_avg$|^recipiency_annual_reg$|^recipiency_annual_fed$|^recipiency_annual_total$|^reg_total_annual_mov_average_per_week$|^fed_total_annual_mov_average_per_week$|^recipiency_annual_per_week_reg$|^recipiency_annual_per_week_fed$|^recipiency_annual_per_week_total")
+
   # message("Writing Benefit Exaustions to Google Sheets")
   # df_all %>% 
   #   write_data_as_sheet(sheet_name, "Back End 4.4 Benefit Exhaustions", "^monthly_exhaustion_total")
