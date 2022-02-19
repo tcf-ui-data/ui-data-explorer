@@ -234,19 +234,19 @@ get_state_from_series_id <- function(series) {
 
 get_nonmonetary_determination_time_lapse <- function() {
   df <- downloadUCData("https://oui.doleta.gov/unemploy/csv/ar9052.csv") %>% 
-    mutate(total = c1 + c5,
+    mutate(nonmon_total = c1 + c5,
            nonmon_det_21_days = c9+c17+c25+c29+c21+c13,
            nonmon_det_28_days = c33 + c37,
            nonmon_det_35_days = c41 + c45,
            nonmon_det_42_days = c49 + c53,
            nonmon_det_49_days = c57 + c61,
            nonmon_det_50_plus_days = c65+c69+c73+c77+c81+c85+c89+c93) %>% 
-    mutate(nonmon_det_21_days_prop = nonmon_det_21_days / total,
-           nonmon_det_28_days_prop = nonmon_det_28_days / total,
-           nonmon_det_35_days_prop = nonmon_det_35_days / total,
-           nonmon_det_42_days_prop = nonmon_det_42_days / total,
-           nonmon_det_49_days_prop = nonmon_det_49_days / total,
-           nonmon_det_50_plus_days_prop = nonmon_det_50_plus_days / total) %>% 
+    mutate(nonmon_det_21_days_prop = nonmon_det_21_days / nonmon_total,
+           nonmon_det_28_days_prop = nonmon_det_28_days / nonmon_total,
+           nonmon_det_35_days_prop = nonmon_det_35_days / nonmon_total,
+           nonmon_det_42_days_prop = nonmon_det_42_days / nonmon_total,
+           nonmon_det_49_days_prop = nonmon_det_49_days / nonmon_total,
+           nonmon_det_50_plus_days_prop = nonmon_det_50_plus_days / nonmon_total) %>% 
     select(-starts_with("c"))
   
   
@@ -297,15 +297,29 @@ get_demographic_data <- function() {
            demographic_age_prop_55_and_older = demographic_age_55_and_older / demographic_all_insured,
            demographic_age_prop_unk = demographic_age_unk / demographic_all_insured) %>% 
     select(-starts_with("c"))
-           
 
   # compute US Averages and add them into the df
   usAvg <- df %>% 
     group_by(rptdate) %>% 
     summarize(across(where(is.numeric), mean, na.rm = T))
 
+  # create the larger dataset and then make a moving average
   df <- df %>% 
-    bind_rows(usAvg %>% mutate(st = "US (avg)"))
+    bind_rows(usAvg %>% mutate(st = "US (avg)")) %>% 
+    arrange(st, rptdate) %>% 
+    group_by(st) %>% 
+    mutate(demographic_race_black_12m_avg = rollmean(demographic_race_black, k=12, align="right", na.pad=T),
+           demographic_race_asian_pacific_islander_12m_avg = rollmean(demographic_race_asian_pacific_islander, k=12, align="right", na.pad=T),
+           demographic_race_native_american_alaskan_12m_avg = rollmean(demographic_race_native_american_alaskan, k=12, align="right", na.pad=T),
+           demographic_race_white_12m_avg = rollmean(demographic_race_white, k=12, align="right", na.pad=T),
+           demographic_eth_latinx_12m_avg = rollmean(demographic_eth_latinx, k=12, align="right", na.pad=T),
+           demographic_all_insured_12m_avg = rollmean(demographic_all_insured, k=12, align="right", na.pad=T)) %>% 
+    mutate(demographic_race_prop_black_12m_avg_prop = demographic_race_black_12m_avg / demographic_all_insured_12m_avg,
+           demographic_race_asian_pacific_islander_12m_avg = demographic_race_asian_pacific_islander_12m_avg / demographic_all_insured_12m_avg,
+           demographic_race_native_american_alaskan_12m_avg_prop = demographic_race_native_american_alaskan_12m_avg / demographic_all_insured_12m_avg,
+           demographic_eth_latinx_12m_avg_prop = demographic_eth_latinx_12m_avg / demographic_all_insured_12m_avg,
+           demographic_race_white_12m_avg_prop = demographic_race_white_12m_avg / demographic_all_insured_12m_avg) %>% 
+    ungroup()
 }
 
 # weekly claims data 
@@ -444,6 +458,8 @@ get_basic_ui_information <- function() {
   # name the columns that we care about for later code readability
   ucClaimsPaymentsRegular <- ucClaimsPaymentsRegular %>% 
     rename(monthly_initial_claims = c1,
+           monthly_ucfe_initial_claims = c7,
+           monthly_ucx_initial_claims = c13,
            monthly_initial_additional_intrastate = c3,
            monthly_first_payments = c51,
            monthly_first_payments_intrastate = c52,
@@ -820,6 +836,8 @@ getNonMonetaryDeterminations <- function(ucClaimsPaymentsMonthly, pua_claims)
       denial_non_other = state_denial_non_other + eb_state_denial_non_other + euc08_state_denial_non_other + 
         euc91_state_denial_non_other + teuc_state_denial_non_other + 
         (pua_appeals_disposed_state_total + pua_appeals_disposed_ra_total - pua_appeals_successful_state_total - pua_appeals_successful_ra_total), # in theory this is the pua denials,
+      denial_sep_non_sep_total = state_denial_sep_total + ufce_denial_sep_total + state_denial_non_total,
+      denial_initial_claims = initial_monthly_
       
       # now calculate our actual statistics that we care about
       # mgh: I don't feel like PUA is properly captured; it is in the determinations total and denials_non and in non-other, but is that right?
@@ -1075,8 +1093,8 @@ get_average_total_benefits_paid <- function(basic_ui_data, start_date = "2005-01
     summarize(annual_benefits_paid = sum(monthly_state_compensated, monthly_ucfe_ucx_compensated),
               annual_first_payments = sum(monthly_state_first_payments)) %>% 
     ungroup() %>% 
-    mutate(annual_avg_benefits_paid = annual_benefits_paid / annual_first_payments)
-  
+    mutate(annual_avg_benefits_paid = annual_benefits_paid / annual_first_payments) 
+
   # get us averages
   usAvg <- basic_ui_data %>% 
     group_by(year) %>% 
@@ -1175,7 +1193,7 @@ write_to_google_sheets <- function(df_all, df_total_payments, average_total_bene
   
   message("Writing Average Annual Benefits Paid to Google Sheets")
   average_total_benefits_df %>% 
-    write_data_as_sheet(sheet_name, "Back End Annual Average Benefits Paid", "^annual_")
+    write_sheet(sheet_name, "Back End Annual Average Benefits Paid")
   
   message("Writing Back End Appeals Aging to Google Sheets")
   df_all %>% 
@@ -1186,6 +1204,11 @@ write_to_google_sheets <- function(df_all, df_total_payments, average_total_bene
   df_all %>% 
     filter(rptdate >= "2005-01-01") %>% 
     write_data_as_sheet(sheet_name, "Back End Trust Fund Balance", "^trust_fund_balance")
+  
+  message("Writing Back End Demographic Information to Google Sheets")
+  df_all %>% 
+    filter(rptdate >= "2005-01-01") %>% 
+    write_data_as_sheet(sheet_name, "Back End Demographic Info", "^demographic.*_12m_avg.*$")
   
   # message("Writing Benefit Exaustions to Google Sheets")
   # df_all %>% 
