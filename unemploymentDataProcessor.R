@@ -1110,17 +1110,6 @@ get_average_total_benefits_paid <- function(basic_ui_data, start_date = "2005-01
               annual_first_payments = sum(monthly_state_first_payments)) %>% 
     ungroup() %>% 
     mutate(annual_avg_benefits_paid = annual_benefits_paid / annual_first_payments) 
-
-  # get us averages
-  usAvg <- basic_ui_data %>% 
-    group_by(rptdate) %>% 
-    summarize(across(where(is.numeric), function(x) round(mean(x, na.rm = T), 3))) # %>% 
-
-  
-  # add the average back into the main df
-  basic_ui_data %>% 
-    bind_rows(usAvg %>% mutate(st = "US (avg)")) %>% 
-    mutate(st = as.factor(st))
 }
 
 # gets the annual denial rate of sep and non sep claims by adding up all denials and dividing by total claims for the year.
