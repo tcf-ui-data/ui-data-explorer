@@ -485,7 +485,7 @@ get_basic_ui_information <- function() {
     mutate(monthly_weeks_claimed = c22 + monthly_state_intrastate,
            monthly_partial_weeks_compensated = monthly_weeks_compensated - c39,
            monthly_first_payments_as_prop_claims = monthly_first_payments / monthly_initial_claims,
-           monthly_state_first_payments = monthly_first_payments + monthly_first_payments_ufce + monthly_first_payments_ucx,
+           monthly_state_first_payments = monthly_first_payments, #+ monthly_first_payments_ufce + monthly_first_payments_ucx,
            monthly_exhaustion_total = monthly_exhaustion + monthly_exhaustion_ucx + monthly_exhaustion_ufce) %>% 
     select(-starts_with("c"))
   
@@ -983,7 +983,8 @@ getUCAppealsTimeLapseLower <- function(ucBenefitAppealsRegular) {
   ucAppealsTimeLapseLower <- ucAppealsTimeLapseLower %>% 
     rename_at(vars(c("c1", "c4", "c7", "c9")), 
            ~ c("total_lower_appeals", "x0x30", "x31x45", "first_level_appeal_average_age"))
-  ucAppealsCaseAgingLower <- ucAppealsCaseAgingLower %>% rename(lower_appeals_total_outstanding = c1)
+  ucAppealsCaseAgingLower <- ucAppealsCaseAgingLower %>% rename(lower_appeals_total_outstanding = c1, 
+                                                                lower_appeals_average_age = c9)
   
   # calculate some values
   ucAppealsTimeLapseLower <- ucAppealsTimeLapseLower %>% 
@@ -995,7 +996,7 @@ getUCAppealsTimeLapseLower <- function(ucBenefitAppealsRegular) {
   # need to add EUC and EB into this, but not now
   ucAppealsTimeLapseLower <- ucAppealsTimeLapseLower %>% 
     full_join(ucAppealsCaseAgingLower %>% 
-                select(st, rptdate, lower_appeals_total_outstanding), by=c("st", "rptdate")) %>% 
+                select(st, rptdate, lower_appeals_total_outstanding, lower_appeals_average_age), by=c("st", "rptdate")) %>% 
     full_join(ucBenefitAppealsRegular %>% 
                 select(st, rptdate, lower_filed, lower_appeals_total_disposed), by=c("st", "rptdate"))
 
@@ -1106,7 +1107,7 @@ get_average_total_benefits_paid <- function(basic_ui_data, start_date = "2005-01
            rptdate <= end_date) %>% 
     mutate(rptdate = floor_date(rptdate, "year")) %>% 
     group_by(rptdate, st) %>% 
-    summarize(annual_benefits_paid = sum(monthly_state_compensated, monthly_ucfe_ucx_compensated),
+    summarize(annual_benefits_paid = sum(monthly_state_compensated),
               annual_first_payments = sum(monthly_state_first_payments)) %>% 
     ungroup() %>% 
     mutate(annual_avg_benefits_paid = annual_benefits_paid / annual_first_payments) 
@@ -1227,12 +1228,12 @@ write_to_google_sheets <- function(df_all, df_google, sheet_name) {
   message("Writing Back End Appeals Aging to Google Sheets")
   df_all %>%
     filter(rptdate >= "2000-01-01") %>%
-    write_data_as_sheet(sheet_name, "Back End Appeals Aging", "^first_level_appeal_average_age")
+    write_data_as_sheet(sheet_name, "Back End Appeals Aging", "^lower_appeals_average_age")
 
   message("Writing Back End Nonmonetary Determination Timeliness to Google Sheets")
   df_all %>%
     filter(rptdate >= "2000-01-01") %>%
-    write_data_as_sheet(sheet_name, "Back End Non-monetary Appeals Timeliness", "^nonmon.*intrastate")
+    write_data_as_sheet(sheet_name, "Back End Nonmonetary Determination Timeliness", "^nonmon.*intrastate")
 
   message("Writing Back End Trust Fund Balance to Google Sheets")
   df_all %>%
