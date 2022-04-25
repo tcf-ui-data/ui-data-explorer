@@ -234,22 +234,26 @@ get_state_from_series_id <- function(series) {
 
 get_nonmonetary_determination_time_lapse <- function() {
   df <- downloadUCData("https://oui.doleta.gov/unemploy/csv/ar9052.csv") %>% 
-    mutate(nonmon_total = c1 + c5,
-           nonmon_total_intrastate = c1,
-           nonmon_det_21_days = c9+c17+c25+c29+c21+c13,
-           nonmon_det_21_days_intrastate = c9+c17+c25,
-           nonmon_det_28_days = c33 + c37,
-           nonmon_det_35_days = c41 + c45,
-           nonmon_det_42_days = c49 + c53,
-           nonmon_det_49_days = c57 + c61,
-           nonmon_det_50_plus_days = c65+c69+c73+c77+c81+c85+c89+c93) %>% 
-    mutate(nonmon_det_21_days_intrastate_prop = nonmon_det_21_days_intrastate / nonmon_total_intrastate,
-           nonmon_det_21_days_prop = nonmon_det_21_days / nonmon_total,
-           nonmon_det_28_days_prop = nonmon_det_28_days / nonmon_total,
-           nonmon_det_35_days_prop = nonmon_det_35_days / nonmon_total,
-           nonmon_det_42_days_prop = nonmon_det_42_days / nonmon_total,
-           nonmon_det_49_days_prop = nonmon_det_49_days / nonmon_total,
-           nonmon_det_50_plus_days_prop = nonmon_det_50_plus_days / nonmon_total) %>% 
+    mutate(nonmon_sep_total = c1 + c5,
+           nonmon_sep_total_intrastate = c1,
+           nonmon_sep_det_21_days = c9+c17+c25+c29+c21+c13,
+           nonmon_sep_det_21_days_intrastate = c9+c17+c25,
+           nonmon_sep_det_28_days = c33 + c37,
+           nonmon_sep_det_35_days = c41 + c45,
+           nonmon_sep_det_42_days = c49 + c53,
+           nonmon_sep_det_49_days = c57 + c61,
+           nonmon_sep_det_50_plus_days = c65+c69+c73+c77+c81+c85+c89+c93,
+           nonmon_nonsep_total_intrastate = c97,
+           nonmon_nonsep_de_21_days_intrastate = c105 + c113 + c121) %>% 
+    mutate(nonmon_sep_det_21_days_intrastate_prop = nonmon_sep_det_21_days_intrastate / nonmon_sep_total_intrastate,
+           nonmon_sep_det_21_days_prop = nonmon_sep_det_21_days / nonmon_sep_total,
+           nonmon_sep_det_28_days_prop = nonmon_sep_det_28_days / nonmon_sep_total,
+           nonmon_sep_det_35_days_prop = nonmon_sep_det_35_days / nonmon_sep_total,
+           nonmon_sep_det_42_days_prop = nonmon_sep_det_42_days / nonmon_sep_total,
+           nonmon_sep_det_49_days_prop = nonmon_sep_det_49_days / nonmon_sep_total,
+           nonmon_sep_det_50_plus_days_prop = nonmon_det_50_plus_days / nonmon_sep_total,
+           nonmon_nonsep_det_21_days_intrastate_prop = nonmon_nonsep_det_21_days_intrastate / nonmon_nonsep_total_intrastate,
+           nonmon_total_det_21_days_intrastate_prop = (nonmon_sep_det_21_days_intrastate + nonmon_nonsep_det_21_days_intrastate) / (nonmon_sep_total_intrastate + nonmon_nonsep_total_intrastate)) %>% 
     select(-starts_with("c"))
   
   
@@ -634,8 +638,8 @@ get_basic_ui_information <- function() {
 getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
 {
   message("Getting recipency")
-  message("columns of bls_unemployed:")
-  message(names(bls_unemployed))
+  #message("columns of bls_unemployed:")
+  #message(names(bls_unemployed))
   # take the bls unemployment data and just extract the data that we need, which includes getting a 
   # 12 month moving averages of the unemployed number
   bls_unemployed <- bls_unemployed %>% filter(endsWith(metric, "nsa")) %>% 
@@ -645,6 +649,15 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
     mutate(unemployed_avg = round(rollmean(total_unemployed_nsa, k=12, align="right", na.pad=T), 0)) %>% 
     ungroup()
   
+  
+  # create a row for the US as a whole, not a US average:
+  ucClaimsPaymentsMonthly <- bind_rows(ucClaimsPaymentsMonthly,
+    ucClaimsPaymentsMonthly %>% 
+    filter(st != "US (avg)") %>% 
+    group_by(rptdate) %>% 
+    summarize(across(where(is.numeric), sum)) %>% 
+    ungroup() %>% 
+    mutate(st = "US"))
   
   # sum the various numbers that we care about and then divide by the number of weeks in the month to get a weekly number rather than a monthly number
   ucRecipiency <- ucClaimsPaymentsMonthly %>% 
@@ -1211,16 +1224,16 @@ write_data_as_sheet <- function(df, sheet_name, tab, metric_filter) {
 
 # write a series of dfs to a google sheet
 write_to_google_sheets <- function(df_all, df_google, sheet_name) {
-#   
-#   # message("Writing First Time Payments to Google Sheets")
-#   # df_all %>% 
-#   #   write_data_as_sheet(sheet_name, "Back End First Time Payments", "^first_time")
-# 
-#   message("Writing Monthly First Time Payments to Google Sheets")
-#   df_all %>% 
-#     filter(rptdate >= "2005-01-01") %>% 
-#     write_data_as_sheet(sheet_name, "Back End Monthly First Time Payments", "monthly_state_first|monthly_pua_first")
-#   
+
+  # message("Writing First Time Payments to Google Sheets")
+  # df_all %>%
+  #   write_data_as_sheet(sheet_name, "Back End First Time Payments", "^first_time")
+
+  message("Writing Monthly First Time Payments to Google Sheets")
+  df_all %>%
+    filter(rptdate >= "2005-01-01") %>%
+    write_data_as_sheet(sheet_name, "Back End Monthly First Time Payments", "monthly_state_first|monthly_pua_first")
+
   message("Writing Average Annual Benefits Paid to Google Sheets")
   df_google %>%
     write_data_as_sheet(sheet_name, "Back End Annual Average Benefits Paid", "^annual_")
@@ -1254,17 +1267,17 @@ write_to_google_sheets <- function(df_all, df_google, sheet_name) {
     filter(rptdate >= "2005-01-01") %>%
     write_data_as_sheet(sheet_name, "Back End Recipiency Rate", "^unemployed_avg|^reg_total_week_mov_avg$|^fed_total_week_mov_avg$|^recipiency_annual_reg$|^recipiency_annual_fed$|^recipiency_annual_total$|^reg_total_annual_mov_average_per_week$|^fed_total_annual_mov_average_per_week$|^recipiency_annual_per_week_reg$|^recipiency_annual_per_week_fed$|^recipiency_annual_per_week_total")
 
-  # message("Writing Benefit Exaustions to Google Sheets")
-  # df_all %>% 
-  #   write_data_as_sheet(sheet_name, "Back End 4.4 Benefit Exhaustions", "^monthly_exhaustion_total")
-  # 
-  # message("Writing Non-monetary determination time lapse to Google Sheets")
-  # df_all %>% 
-  #   write_data_as_sheet(sheet_name, "Back End 1.2 Nonmonetary Separations", "nonmon_det.*prop")
-  # 
-  # message("Writing Total Payments to Google Sheets")
-  # df_google %>% 
-  #   write_data_as_sheet(sheet_name, "Back End 3.2 Total Payments Since March 2020", "Total Payments Since")
+  message("Writing Benefit Exaustions to Google Sheets")
+  df_all %>%
+    write_data_as_sheet(sheet_name, "Back End 4.4 Benefit Exhaustions", "^monthly_exhaustion_total")
+
+  message("Writing Non-monetary determination time lapse to Google Sheets")
+  df_all %>%
+    write_data_as_sheet(sheet_name, "Back End 1.2 Nonmonetary Separations", "nonmon_det.*prop")
+
+  message("Writing Total Payments to Google Sheets")
+  df_google %>%
+    write_data_as_sheet(sheet_name, "Back End 3.2 Total Payments Since March 2020", "Total Payments Since")
 
 }
 
@@ -1299,7 +1312,9 @@ bls_unemployed <- bind_rows(
   map_dfr(c("UNRATENSA", "DCURN", paste0(state.abb, "URN")), get_fred_series_with_state_id, "unemployment_rate_nsa", sleep = TRUE),
   map_dfr(c("UNEMPLOY", paste0("LASST", str_pad(1:56,width = 2, side = "left", pad = "0"), "0000000000004")), get_fred_series_with_state_id, "total_unemployed_sa", sleep = TRUE),
   map_dfr(c("LNU03000000", paste0("LAUST", str_pad(1:56,width = 2, side = "left", pad = "0"), "0000000000004")), get_fred_series_with_state_id, "total_unemployed_nsa", sleep = TRUE),
-  labor_force_info)
+  labor_force_info) %>% 
+  # total_unemployed_nsa is in thousands of workers for the total US, so we need to multiple it
+  mutate(value = ifelse(st == "US" & metric == "total_unemployed_nsa", value * 1000, value))
 
 # basic claims and payment information
 message("Collecting Basic Claims and Payment data.")
