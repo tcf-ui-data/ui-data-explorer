@@ -1225,9 +1225,9 @@ write_data_as_sheet <- function(df, sheet_name, tab, metric_filter) {
 # write a series of dfs to a google sheet
 write_to_google_sheets <- function(df_all, df_google, sheet_name) {
 
-  # message("Writing First Time Payments to Google Sheets")
-  # df_all %>%
-  #   write_data_as_sheet(sheet_name, "Back End First Time Payments", "^first_time")
+  message("Writing First Time Payments to Google Sheets")
+  df_all %>%
+    write_data_as_sheet(sheet_name, "Back End First Time Payments", "^first_time")
 
   message("Writing Monthly First Time Payments to Google Sheets")
   df_all %>%
