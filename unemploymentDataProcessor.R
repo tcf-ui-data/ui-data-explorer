@@ -234,19 +234,26 @@ get_state_from_series_id <- function(series) {
 
 get_nonmonetary_determination_time_lapse <- function() {
   df <- downloadUCData("https://oui.doleta.gov/unemploy/csv/ar9052.csv") %>% 
-    mutate(total = c1 + c5,
-           nonmon_det_21_days = c9+c17+c25+c29+c21+c13,
-           nonmon_det_28_days = c33 + c37,
-           nonmon_det_35_days = c41 + c45,
-           nonmon_det_42_days = c49 + c53,
-           nonmon_det_49_days = c57 + c61,
-           nonmon_det_50_plus_days = c65+c69+c73+c77+c81+c85+c89+c93) %>% 
-    mutate(nonmon_det_21_days_prop = nonmon_det_21_days / total,
-           nonmon_det_28_days_prop = nonmon_det_28_days / total,
-           nonmon_det_35_days_prop = nonmon_det_35_days / total,
-           nonmon_det_42_days_prop = nonmon_det_42_days / total,
-           nonmon_det_49_days_prop = nonmon_det_49_days / total,
-           nonmon_det_50_plus_days_prop = nonmon_det_50_plus_days / total) %>% 
+    mutate(nonmon_sep_total = c1 + c5,
+           nonmon_sep_total_intrastate = c1,
+           nonmon_sep_det_21_days = c9+c17+c25+c29+c21+c13,
+           nonmon_sep_det_21_days_intrastate = c9+c17+c25,
+           nonmon_sep_det_28_days = c33 + c37,
+           nonmon_sep_det_35_days = c41 + c45,
+           nonmon_sep_det_42_days = c49 + c53,
+           nonmon_sep_det_49_days = c57 + c61,
+           nonmon_sep_det_50_plus_days = c65+c69+c73+c77+c81+c85+c89+c93,
+           nonmon_nonsep_total_intrastate = c97,
+           nonmon_nonsep_de_21_days_intrastate = c105 + c113 + c121) %>% 
+    mutate(nonmon_sep_det_21_days_intrastate_prop = nonmon_sep_det_21_days_intrastate / nonmon_sep_total_intrastate,
+           nonmon_sep_det_21_days_prop = nonmon_sep_det_21_days / nonmon_sep_total,
+           nonmon_sep_det_28_days_prop = nonmon_sep_det_28_days / nonmon_sep_total,
+           nonmon_sep_det_35_days_prop = nonmon_sep_det_35_days / nonmon_sep_total,
+           nonmon_sep_det_42_days_prop = nonmon_sep_det_42_days / nonmon_sep_total,
+           nonmon_sep_det_49_days_prop = nonmon_sep_det_49_days / nonmon_sep_total,
+           nonmon_sep_det_50_plus_days_prop = nonmon_det_50_plus_days / nonmon_sep_total,
+           nonmon_nonsep_det_21_days_intrastate_prop = nonmon_nonsep_det_21_days_intrastate / nonmon_nonsep_total_intrastate,
+           nonmon_total_det_21_days_intrastate_prop = (nonmon_sep_det_21_days_intrastate + nonmon_nonsep_det_21_days_intrastate) / (nonmon_sep_total_intrastate + nonmon_nonsep_total_intrastate)) %>% 
     select(-starts_with("c"))
   
   
@@ -297,15 +304,29 @@ get_demographic_data <- function() {
            demographic_age_prop_55_and_older = demographic_age_55_and_older / demographic_all_insured,
            demographic_age_prop_unk = demographic_age_unk / demographic_all_insured) %>% 
     select(-starts_with("c"))
-           
 
   # compute US Averages and add them into the df
   usAvg <- df %>% 
     group_by(rptdate) %>% 
     summarize(across(where(is.numeric), mean, na.rm = T))
 
+  # create the larger dataset and then make a moving average
   df <- df %>% 
-    bind_rows(usAvg %>% mutate(st = "US (avg)"))
+    bind_rows(usAvg %>% mutate(st = "US (avg)")) %>% 
+    arrange(st, rptdate) %>% 
+    group_by(st) %>% 
+    mutate(demographic_race_black_12m_avg = rollmean(demographic_race_black, k=12, align="right", na.pad=T),
+           demographic_race_asian_pacific_islander_12m_avg = rollmean(demographic_race_asian_pacific_islander, k=12, align="right", na.pad=T),
+           demographic_race_native_american_alaskan_12m_avg = rollmean(demographic_race_native_american_alaskan, k=12, align="right", na.pad=T),
+           demographic_race_white_12m_avg = rollmean(demographic_race_white, k=12, align="right", na.pad=T),
+           demographic_eth_latinx_12m_avg = rollmean(demographic_eth_latinx, k=12, align="right", na.pad=T),
+           demographic_all_insured_12m_avg = rollmean(demographic_all_insured, k=12, align="right", na.pad=T)) %>% 
+    mutate(demographic_race_prop_black_12m_avg_prop = demographic_race_black_12m_avg / demographic_all_insured_12m_avg,
+           demographic_race_asian_pacific_islander_12m_avg_prop = demographic_race_asian_pacific_islander_12m_avg / demographic_all_insured_12m_avg,
+           demographic_race_native_american_alaskan_12m_avg_prop = demographic_race_native_american_alaskan_12m_avg / demographic_all_insured_12m_avg,
+           demographic_eth_latinx_12m_avg_prop = demographic_eth_latinx_12m_avg / demographic_all_insured_12m_avg,
+           demographic_race_white_12m_avg_prop = demographic_race_white_12m_avg / demographic_all_insured_12m_avg) %>% 
+    ungroup()
 }
 
 # weekly claims data 
@@ -400,15 +421,16 @@ get_pua_data <- function() {
     ) %>% 
     mutate(pua_percent_eligible =  pua_eligible_total / pua_initial_applications_total,
            pua_percent_applicants_self_employed = pua_initial_applications_self / pua_initial_applications_total,
-           pua_percent_eligible_self_employed = pua_eligible_self / pua_initial_applications_self
+           pua_percent_eligible_self_employed = pua_eligible_self / pua_initial_applications_self,
+           monthly_pua_first_payments = pua_first_payments
     ) %>% 
     select(-starts_with("c"))
 }
 
-# puc $600 payments
-get_puc_600_data <- function() {
+# trust fund solvency and puc $600 payments
+get_ui_financial_data <- function() {
   df <- downloadUCData("https://oui.doleta.gov/unemploy/csv/ar2112.csv") %>%   # ar2112 data 
-    rename(puc_payments = c125, puc_payments_total = c124) %>%  #,pua_payments = c128) pua_payments doesn't yet exist!
+    rename(trust_fund_balance = c3, puc_payments = c125, puc_payments_total = c124) %>%  #,pua_payments = c128) pua_payments doesn't yet exist!
     select(-starts_with("c")) %>% 
     mutate(puc_weeks = puc_payments_total / 600)
   
@@ -419,8 +441,6 @@ get_puc_600_data <- function() {
   
   df <- df %>% 
     bind_rows(usAvg %>% mutate(st = "US (avg)"))
-
-  
 }
 
 
@@ -434,7 +454,7 @@ get_basic_ui_information <- function() {
   ucClaimsPaymentsEUC08 <- downloadUCData("https://oui.doleta.gov/unemploy/csv/au5159.csv") #5159 report
   ucClaimsPaymentsWorksharing <- downloadUCData("https://oui.doleta.gov/unemploy/csv/aw5159.csv")
   ucClaimsPaymentsPEUC20 <- downloadUCData("https://oui.doleta.gov/unemploy/csv/ap5159.csv") # 5159 report
-  ucClaimsPaymentsPUC20 <- get_puc_600_data()
+  ucClaimsPaymentsPUC20 <- get_ui_financial_data()
   ucClaimsPaymentsPUA20 <- get_pua_data()
 
   # EUC data from the 80s isn't available on the DOL website, but DOL provided a copy of those claims
@@ -445,8 +465,14 @@ get_basic_ui_information <- function() {
   # name the columns that we care about for later code readability
   ucClaimsPaymentsRegular <- ucClaimsPaymentsRegular %>% 
     rename(monthly_initial_claims = c1,
+           monthly_ucfe_initial_claims = c7,
+           monthly_ucx_initial_claims = c13,
            monthly_initial_additional_intrastate = c3,
            monthly_first_payments = c51,
+           monthly_first_payments_intrastate = c52,
+           monthly_first_payments_interstate = c53,
+           monthly_first_payments_ufce = c54,
+           monthly_first_payments_ucx = c55,
            monthly_weeks_compensated = c38,
            monthly_exhaustion = c56,
            monthly_exhaustion_ufce = c57,
@@ -463,6 +489,7 @@ get_basic_ui_information <- function() {
     mutate(monthly_weeks_claimed = c22 + monthly_state_intrastate,
            monthly_partial_weeks_compensated = monthly_weeks_compensated - c39,
            monthly_first_payments_as_prop_claims = monthly_first_payments / monthly_initial_claims,
+           monthly_state_first_payments = monthly_first_payments, #+ monthly_first_payments_ufce + monthly_first_payments_ucx,
            monthly_exhaustion_total = monthly_exhaustion + monthly_exhaustion_ucx + monthly_exhaustion_ufce) %>% 
     select(-starts_with("c"))
   
@@ -528,7 +555,11 @@ get_basic_ui_information <- function() {
            euc08_ucx_intrastate = c24, 
            euc08_ucx_liable = c27,
            euc08_state_compensated = c35, 
-           euc08_ucfe_ucx_compensated = c37) %>% 
+           euc08_ucfe_ucx_compensated = c37,
+           euc_second_tier_state_compensated = c57, 
+           euc_second_tier_ucfe_ucx_compensated = c59, 
+           euc_third_tier_state_compensated = c73,
+           euc_third_tier_ucfe_ucx_compensated = c75) %>% 
     select(-starts_with("c"))
   
   ucClaimsPaymentsWorksharing <- ucClaimsPaymentsWorksharing %>% 
@@ -606,10 +637,9 @@ get_basic_ui_information <- function() {
 # accepts as a parameter bls_unemployment data
 getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
 {
-  
   message("Getting recipency")
-  message("columns of bls_unemployed:")
-  message(names(bls_unemployed))
+  #message("columns of bls_unemployed:")
+  #message(names(bls_unemployed))
   # take the bls unemployment data and just extract the data that we need, which includes getting a 
   # 12 month moving averages of the unemployed number
   bls_unemployed <- bls_unemployed %>% filter(endsWith(metric, "nsa")) %>% 
@@ -619,6 +649,15 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
     mutate(unemployed_avg = round(rollmean(total_unemployed_nsa, k=12, align="right", na.pad=T), 0)) %>% 
     ungroup()
   
+  
+  # create a row for the US as a whole, not a US average:
+  ucClaimsPaymentsMonthly <- bind_rows(ucClaimsPaymentsMonthly,
+    ucClaimsPaymentsMonthly %>% 
+    filter(st != "US (avg)") %>% 
+    group_by(rptdate) %>% 
+    summarize(across(where(is.numeric), sum)) %>% 
+    ungroup() %>% 
+    mutate(st = "US"))
   
   # sum the various numbers that we care about and then divide by the number of weeks in the month to get a weekly number rather than a monthly number
   ucRecipiency <- ucClaimsPaymentsMonthly %>% 
@@ -648,6 +687,13 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
     # 12 month moving averages of the above
     group_by(st) %>% 
     mutate(
+      # two different ways to get a weekly number
+      ## first we sum the last 12 months of payments and then divide by 52 to get an average weekly amount from the last year
+      reg_total_annual_mov_average_per_week = rollsum(reg_total, k = 12, align = "right", na.pad = T) / 52,
+      fed_total_annual_mov_average_per_week = rollsum(fed_total, k = 12, align = "right", na.pad = T) / 52,
+
+      ## second we compute an average of teh last 12 months of payments and then divide by the number of weeks
+      ## in this month.  These claculations should be very similar, but may differ a bit
       reg_total_week_mov_avg = rollmean(reg_total_week, k = 12, align = "right", na.pad = T),
       fed_total_week_mov_avg = rollmean(fed_total_week, k = 12, align = "right", na.pad = T),
       total_week_mov_avg = rollmean(total_week, k = 12, align = "right", na.pad = T),
@@ -676,15 +722,22 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
   ucRecipiency <- ucRecipiency %>% 
     bind_rows(usAvg %>% mutate(st = "US (avg)")) %>%
     mutate(
-      # get recipiency rates
+      # get recipiency rates using both sets of weekly avg numbers
+      ## first the method 1 numbers
+      recipiency_annual_per_week_reg = round(reg_total_annual_mov_average_per_week / unemployed_avg,3),
+      recipiency_annual_per_week_fed = round(fed_total_annual_mov_average_per_week / unemployed_avg,3),
+      recipiency_annual_per_week_total = recipiency_annual_per_week_reg + recipiency_annual_per_week_fed,
+
+      ## second the method 2 numbers
       recipiency_annual_reg = round(reg_total_week_mov_avg / unemployed_avg,3),
       recipiency_annual_total = round(total_week_mov_avg / unemployed_avg, 3),
       recipiency_annual_fed = recipiency_annual_total - recipiency_annual_reg) %>% 
     replace(is.na(.), 0) %>% 
     # select just the cols that we need
-    select(st,rptdate,total_week_mov_avg, unemployed_avg, recipiency_annual_reg, recipiency_annual_fed, recipiency_annual_total, total_state_compensated_mov_avg,
-           total_week_mov_avg, total_compensated, total_federal_compensated_mov_avg, total_state_compensated, total_federal_compensated,
-           total_compensated_mov_avg)
+    select(st, rptdate, total_week_mov_avg, unemployed_avg, reg_total_week_mov_avg, fed_total_week_mov_avg, recipiency_annual_reg, recipiency_annual_fed, 
+           recipiency_annual_total, total_state_compensated_mov_avg, total_week_mov_avg, total_compensated, 
+           total_federal_compensated_mov_avg, total_state_compensated, total_federal_compensated,
+           total_compensated_mov_avg, reg_total_annual_mov_average_per_week, fed_total_annual_mov_average_per_week, recipiency_annual_per_week_reg, recipiency_annual_per_week_fed, recipiency_annual_per_week_total)
 
   return(ucRecipiency)
 }
@@ -813,6 +866,7 @@ getNonMonetaryDeterminations <- function(ucClaimsPaymentsMonthly, pua_claims)
       denial_non_other = state_denial_non_other + eb_state_denial_non_other + euc08_state_denial_non_other + 
         euc91_state_denial_non_other + teuc_state_denial_non_other + 
         (pua_appeals_disposed_state_total + pua_appeals_disposed_ra_total - pua_appeals_successful_state_total - pua_appeals_successful_ra_total), # in theory this is the pua denials,
+      denial_sep_non_sep_total = state_denial_sep_total + ufce_denial_sep_total + state_denial_non_total,
       
       # now calculate our actual statistics that we care about
       # mgh: I don't feel like PUA is properly captured; it is in the determinations total and denials_non and in non-other, but is that right?
@@ -940,21 +994,22 @@ getUCAppealsTimeLapseLower <- function(ucBenefitAppealsRegular) {
   
   # set some names
   ucAppealsTimeLapseLower <- ucAppealsTimeLapseLower %>% 
-    rename_at(vars(c("c1", "c4", "c7")), 
-           ~ c("total_lower_appeals", "x0x30", "x31x45"))
-  ucAppealsCaseAgingLower <- ucAppealsCaseAgingLower %>% rename(lower_appeals_total_outstanding = c1)
+    rename_at(vars(c("c1", "c4", "c7", "c9")), 
+           ~ c("total_lower_appeals", "x0x30", "x31x45", "first_level_appeal_average_age"))
+  ucAppealsCaseAgingLower <- ucAppealsCaseAgingLower %>% rename(lower_appeals_total_outstanding = c1, 
+                                                                lower_appeals_average_age = c9)
   
   # calculate some values
   ucAppealsTimeLapseLower <- ucAppealsTimeLapseLower %>% 
     mutate(
       lower_Within30Days = round(x0x30 / total_lower_appeals, 3),
       lower_Within45Days = round((x0x30 + x31x45) / total_lower_appeals, 3)) %>% 
-    select(st, rptdate, total_lower_appeals, lower_Within30Days, lower_Within45Days)
+    select(st, rptdate, total_lower_appeals, lower_Within30Days, lower_Within45Days, first_level_appeal_average_age)
   
   # need to add EUC and EB into this, but not now
   ucAppealsTimeLapseLower <- ucAppealsTimeLapseLower %>% 
     full_join(ucAppealsCaseAgingLower %>% 
-                select(st, rptdate, lower_appeals_total_outstanding), by=c("st", "rptdate")) %>% 
+                select(st, rptdate, lower_appeals_total_outstanding, lower_appeals_average_age), by=c("st", "rptdate")) %>% 
     full_join(ucBenefitAppealsRegular %>% 
                 select(st, rptdate, lower_filed, lower_appeals_total_disposed), by=c("st", "rptdate"))
 
@@ -1052,9 +1107,49 @@ get_total_payments_since_march_2020 <- function(basic_ui_data, pua_data) {
     pivot_longer(-c(st, rptdate)) %>% 
     group_by(st) %>% 
     summarize("Total Payments Since March 2020" = sum(value, na.rm = T),
-              "Most Recent Data" = max(rptdate))
+              rptdate = max(rptdate))
 }
 
+# gets, on an annulaized basis, the amount folks were paid divided by the # of first time claims
+# in that year
+get_average_total_benefits_paid <- function(basic_ui_data, start_date = "2005-01-01", end_date = today()) {
+  
+  # calculate the average paid/claim
+  basic_ui_data <- basic_ui_data %>% 
+    filter(rptdate >= start_date,
+           rptdate <= end_date) %>% 
+    mutate(rptdate = floor_date(rptdate, "year")) %>% 
+    group_by(rptdate, st) %>% 
+    summarize(annual_benefits_paid = sum(monthly_state_compensated),
+              annual_first_payments = sum(monthly_state_first_payments)) %>% 
+    ungroup() %>% 
+    mutate(annual_avg_benefits_paid = annual_benefits_paid / annual_first_payments) 
+}
+
+# gets the annual denial rate of sep and non sep claims by adding up all denials and dividing by total claims for the year.
+# this overcounts in some years and undercounts in others since the denials are based on claims previously made, so january denials
+# could be for december claims, etc...  Over time it should work out to be accurate even if any year is too high or low
+get_annual_denial_rate <- function(df_denials, df_claims, start_date = "2005-01-01", end_date = today()) {
+  # get annual numbers from both data sets and link them together
+  df_denials %>% 
+    filter(rptdate <= end_date, rptdate >= start_date) %>% 
+    select(st, rptdate, denial_sep_non_sep_total) %>% 
+    mutate(rptdate = floor_date(rptdate, "year")) %>% 
+    group_by(st, rptdate) %>% 
+    summarize(denial_sep_non_sep_annual = sum(denial_sep_non_sep_total, na.rm = T)) %>% 
+    ungroup() %>% 
+    left_join(df_claims %>% 
+                filter(rptdate <= end_date, rptdate >= start_date) %>% 
+                select(st, rptdate, monthly_initial_claims, monthly_ucfe_initial_claims, monthly_ucx_initial_claims) %>% 
+                mutate(rptdate = floor_date(rptdate, "year")) %>% 
+                group_by(st, rptdate) %>% 
+                summarize(initial_claims_annual = sum(monthly_initial_claims, monthly_ucfe_initial_claims, monthly_ucx_initial_claims, na.rm = T)) %>% 
+                ungroup(),
+              by = c("st", "rptdate")) %>% 
+    mutate(denial_rate_annual = denial_sep_non_sep_annual / initial_claims_annual)
+}
+
+  
 # writes to a csv file named filename all columns in the DF prefixed by prefix
 write_data_as_csv <- function(df, filename, metric_filter) {
   df %>% 
@@ -1128,22 +1223,61 @@ write_data_as_sheet <- function(df, sheet_name, tab, metric_filter) {
 }
 
 # write a series of dfs to a google sheet
-write_to_google_sheets <- function(df_all, df_total_payments, sheet_name) {
-  
+write_to_google_sheets <- function(df_all, df_google, sheet_name) {
+
   message("Writing First Time Payments to Google Sheets")
-  df_all %>% 
+  df_all %>%
     write_data_as_sheet(sheet_name, "Back End First Time Payments", "^first_time")
-  
+
+  message("Writing Monthly First Time Payments to Google Sheets")
+  df_all %>%
+    filter(rptdate >= "2005-01-01") %>%
+    write_data_as_sheet(sheet_name, "Back End Monthly First Time Payments", "monthly_state_first|monthly_pua_first")
+
+  message("Writing Average Annual Benefits Paid to Google Sheets")
+  df_google %>%
+    write_data_as_sheet(sheet_name, "Back End Annual Average Benefits Paid", "^annual_")
+
+  message("Writing Back End Appeals Aging to Google Sheets")
+  df_all %>%
+    filter(rptdate >= "2000-01-01") %>%
+    write_data_as_sheet(sheet_name, "Back End Appeals Aging", "^lower_appeals_average_age")
+
+  message("Writing Back End Nonmonetary Determination Timeliness to Google Sheets")
+  df_all %>%
+    filter(rptdate >= "2000-01-01") %>%
+    write_data_as_sheet(sheet_name, "Back End Nonmonetary Determination Timeliness", "^nonmon.*intrastate")
+
+  message("Writing Back End Trust Fund Balance to Google Sheets")
+  df_all %>%
+    filter(rptdate >= "2005-01-01") %>%
+    write_data_as_sheet(sheet_name, "Back End Trust Fund Balance", "^trust_fund_balance")
+
+  message("Writing Back End Demographic Information to Google Sheets")
+  df_all %>%
+    filter(rptdate >= "2005-01-01") %>%
+    write_data_as_sheet(sheet_name, "Back End Demographic Info", "^demographic.*_12m_avg.*$")
+
+  message("Writing Back End Annual Denial Rate to Google Sheets")
+  df_google %>%
+    write_data_as_sheet(sheet_name, "Back End Annual Denial Rate", "^denial_|initial_claims_annual")
+
+  message("Writing Back End Recipiency Rates to Google Sheets")
+  df_all %>%
+    filter(rptdate >= "2005-01-01") %>%
+    write_data_as_sheet(sheet_name, "Back End Recipiency Rate", "^unemployed_avg|^reg_total_week_mov_avg$|^fed_total_week_mov_avg$|^recipiency_annual_reg$|^recipiency_annual_fed$|^recipiency_annual_total$|^reg_total_annual_mov_average_per_week$|^fed_total_annual_mov_average_per_week$|^recipiency_annual_per_week_reg$|^recipiency_annual_per_week_fed$|^recipiency_annual_per_week_total")
+
   message("Writing Benefit Exaustions to Google Sheets")
-  df_all %>% 
+  df_all %>%
     write_data_as_sheet(sheet_name, "Back End 4.4 Benefit Exhaustions", "^monthly_exhaustion_total")
 
   message("Writing Non-monetary determination time lapse to Google Sheets")
-  df_all %>% 
+  df_all %>%
     write_data_as_sheet(sheet_name, "Back End 1.2 Nonmonetary Separations", "nonmon_det.*prop")
-  
+
   message("Writing Total Payments to Google Sheets")
-  df_total_payments %>% write_sheet(sheet_name, "Back End 3.2 Total Payments Since March 2020")
+  df_google %>%
+    write_data_as_sheet(sheet_name, "Back End 3.2 Total Payments Since March 2020", "Total Payments Since")
 
 }
 
@@ -1178,7 +1312,9 @@ bls_unemployed <- bind_rows(
   map_dfr(c("UNRATENSA", "DCURN", paste0(state.abb, "URN")), get_fred_series_with_state_id, "unemployment_rate_nsa", sleep = TRUE),
   map_dfr(c("UNEMPLOY", paste0("LASST", str_pad(1:56,width = 2, side = "left", pad = "0"), "0000000000004")), get_fred_series_with_state_id, "total_unemployed_sa", sleep = TRUE),
   map_dfr(c("LNU03000000", paste0("LAUST", str_pad(1:56,width = 2, side = "left", pad = "0"), "0000000000004")), get_fred_series_with_state_id, "total_unemployed_nsa", sleep = TRUE),
-  labor_force_info)
+  labor_force_info) %>% 
+  # total_unemployed_nsa is in thousands of workers for the total US, so we need to multiple it
+  mutate(value = ifelse(st == "US" & metric == "total_unemployed_nsa", value * 1000, value))
 
 # basic claims and payment information
 message("Collecting Basic Claims and Payment data.")
@@ -1205,7 +1341,7 @@ ucAppealsTimeLapseHigher <- getucAppealsTimeLapseHigher()
 # PUA data (pandemic unemployment 2020)
 message("collecting PUA data")
 pua_claims <- get_pua_data()
-#puc_payments <- get_puc_600_data()
+#puc_payments <- get_ui_financial_data()
 
 # get UC recipiency and overpayments\
 message("Collecting UC Recipiency")
@@ -1238,7 +1374,8 @@ ucMonetary <- getMonetaryDeterminations()
 
 # data for the google sheet that isn't already above
 total_payments_since_march_2020 <- get_total_payments_since_march_2020(ucClaimsPaymentsMonthly, pua_claims)
-
+average_total_benefits_paid <- get_average_total_benefits_paid(ucClaimsPaymentsMonthly, start_date = "2005-01-01", end_date = today())
+annual_denial_rate <- get_annual_denial_rate(ucNonMonetary, ucClaimsPaymentsMonthly)
 
 # make long-uberdf
 unemployment_df <- 
@@ -1252,6 +1389,12 @@ unemployment_df <-
   distinct()
 
 
+# made a df for the extra googly sheet stuff
+google_df <- 
+  map_dfr(list(total_payments_since_march_2020, average_total_benefits_paid, annual_denial_rate), 
+          function(x) { 
+            x %>% 
+              pivot_longer(cols = !one_of(c("rptdate", "st")), names_to = "metric", values_to = "value")})
 
 message("Writing Parquet File")
 arrow::write_parquet(unemployment_df, file.path(config::get("DATA_DIR"), "unemployment_data.parquet"), compression = "uncompressed")
@@ -1267,5 +1410,5 @@ gs4_auth(path = rawToChar(json))
 
 # then write to the sheet
 message("Writing to Google Sheets")
-write_to_google_sheets(unemployment_df, total_payments_since_march_2020, sheet_name)
+write_to_google_sheets(unemployment_df, google_df, sheet_name)
 
