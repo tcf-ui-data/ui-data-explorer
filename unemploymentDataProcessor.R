@@ -251,7 +251,7 @@ get_nonmonetary_determination_time_lapse <- function() {
            nonmon_sep_det_35_days_prop = nonmon_sep_det_35_days / nonmon_sep_total,
            nonmon_sep_det_42_days_prop = nonmon_sep_det_42_days / nonmon_sep_total,
            nonmon_sep_det_49_days_prop = nonmon_sep_det_49_days / nonmon_sep_total,
-           nonmon_sep_det_50_plus_days_prop = nonmon_det_50_plus_days / nonmon_sep_total,
+           nonmon_sep_det_50_plus_days_prop = nonmon_sep_det_50_plus_days / nonmon_sep_total,
            nonmon_nonsep_det_21_days_intrastate_prop = nonmon_nonsep_det_21_days_intrastate / nonmon_nonsep_total_intrastate,
            nonmon_total_det_21_days_intrastate_prop = (nonmon_sep_det_21_days_intrastate + nonmon_nonsep_det_21_days_intrastate) / (nonmon_sep_total_intrastate + nonmon_nonsep_total_intrastate)) %>% 
     select(-starts_with("c"))
@@ -1273,7 +1273,7 @@ write_to_google_sheets <- function(df_all, df_google, sheet_name) {
 
   message("Writing Non-monetary determination time lapse to Google Sheets")
   df_all %>%
-    write_data_as_sheet(sheet_name, "Back End 1.2 Nonmonetary Separations", "nonmon_det.*prop")
+    write_data_as_sheet(sheet_name, "Back End 1.2 Nonmonetary Separations", "nonmon_sep_det.*prop")
 
   message("Writing Total Payments to Google Sheets")
   df_google %>%
