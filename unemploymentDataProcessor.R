@@ -1273,7 +1273,7 @@ write_to_google_sheets <- function(df_all, df_google, sheet_name) {
 
   message("Writing Non-monetary determination time lapse to Google Sheets")
   df_all %>%
-    write_data_as_sheet(sheet_name, "Back End 1.2 Nonmonetary Separations", "nonmon_det.*prop")
+    write_data_as_sheet(sheet_name, "Back End 1.2 Nonmonetary Separations", "nonmon_sep_det.*prop")
 
   message("Writing Total Payments to Google Sheets")
   df_google %>%
