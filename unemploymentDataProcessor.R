@@ -244,7 +244,7 @@ get_nonmonetary_determination_time_lapse <- function() {
            nonmon_sep_det_49_days = c57 + c61,
            nonmon_sep_det_50_plus_days = c65+c69+c73+c77+c81+c85+c89+c93,
            nonmon_nonsep_total_intrastate = c97,
-           nonmon_nonsep_de_21_days_intrastate = c105 + c113 + c121) %>% 
+           nonmon_nonsep_det_21_days_intrastate = c105 + c113 + c121) %>% 
     mutate(nonmon_sep_det_21_days_intrastate_prop = nonmon_sep_det_21_days_intrastate / nonmon_sep_total_intrastate,
            nonmon_sep_det_21_days_prop = nonmon_sep_det_21_days / nonmon_sep_total,
            nonmon_sep_det_28_days_prop = nonmon_sep_det_28_days / nonmon_sep_total,
