@@ -651,9 +651,11 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
   
   
   # create a row for the US as a whole, not a US average:
+  # note that the feds don't include PR and VI in their national unemployment numbers,
+  # so we are removing them
   ucClaimsPaymentsMonthly <- bind_rows(ucClaimsPaymentsMonthly,
     ucClaimsPaymentsMonthly %>% 
-    filter(st != "US (avg)") %>% 
+    filter(!st %in% c("US (avg)", "PR", "VI")) %>% 
     group_by(rptdate) %>% 
     summarize(across(where(is.numeric), sum)) %>% 
     ungroup() %>% 
