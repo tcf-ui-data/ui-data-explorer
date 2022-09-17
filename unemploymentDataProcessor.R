@@ -20,7 +20,7 @@ message("Libraries loaded.")
 # fredr key
 fredr_set_key(Sys.getenv("FRED_KEY"))
 # google sheet name
-sheet_name <- "1Wz98hOMQpYBUH8gt6udNv4xKExc66ioD_H1SP9-9J6k"
+sheet_name <- "1sRU4IQHARzpLsB6-zdhpAQZkz87_NUqbOnBdpEnofx0"
 
 
 
