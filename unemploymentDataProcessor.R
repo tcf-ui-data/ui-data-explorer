@@ -18,7 +18,7 @@ library(dplyr)
 
 message("Libraries loaded.")
 # fredr key
-fredr_set_key(Sys.getenv("FRED_KEY"))
+fredr_set_key("1806f598daa5da6d213ff0166e740ebf")
 # google sheet name
 sheet_name <- "1Wz98hOMQpYBUH8gt6udNv4xKExc66ioD_H1SP9-9J6k"
 
