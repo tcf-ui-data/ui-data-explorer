@@ -648,24 +648,14 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
     pivot_wider(names_from = metric, values_from = value) %>%
     arrange(st, rptdate)
   
-  # Check the structure of the data
-  str(bls_unemployed)
-  
-  # Ensure the `total_unemployed_nsa` column is numeric
+  # Unnest the list column total_unemployed_nsa
   bls_unemployed <- bls_unemployed %>%
-    mutate(total_unemployed_nsa = as.numeric(total_unemployed_nsa))
+    unnest(total_unemployed_nsa)
   
-  # Check for non-numeric values and count NAs
-  non_numeric_values <- sum(is.na(as.numeric(bls_unemployed$total_unemployed_nsa)))
-  total_nas <- sum(is.na(bls_unemployed$total_unemployed_nsa))
-  
-  cat("Non-numeric values in total_unemployed_nsa:", non_numeric_values, "\n")
-  cat("Total NAs in total_unemployed_nsa:", total_nas, "\n")
-  
-  # Group and calculate the rolling mean
+  # Group by st and calculate the rolling mean
   bls_unemployed <- bls_unemployed %>%
     group_by(st) %>%
-    mutate(unemployed_avg = round(rollmean(total_unemployed_nsa, k = 12, align = "right", na.pad = TRUE), 0)) %>%
+    mutate(unemployed_avg = round(rollmean(value, k = 12, align = "right", na.pad = TRUE), 0)) %>%
     ungroup()
   # LANCE
   
