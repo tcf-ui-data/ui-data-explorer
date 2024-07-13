@@ -642,13 +642,32 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
   #message(names(bls_unemployed))
   # take the bls unemployment data and just extract the data that we need, which includes getting a 
   # 12 month moving averages of the unemployed number
-  bls_unemployed <- bls_unemployed %>% filter(endsWith(metric, "nsa")) %>% 
-    pivot_wider(names_from = metric, values_from = value) %>% 
-    arrange(st, rptdate) %>% 
-    group_by(st) %>% 
-    mutate(unemployed_avg = round(rollmean(total_unemployed_nsa, k=12, align="right", na.pad=T), 0)) %>% 
-    ungroup()
+  # LANCE
+  bls_unemployed <- bls_unemployed %>%
+    filter(endsWith(metric, "nsa")) %>%
+    pivot_wider(names_from = metric, values_from = value) %>%
+    arrange(st, rptdate)
   
+  # Check the structure of the data
+  str(bls_unemployed)
+  
+  # Ensure the `total_unemployed_nsa` column is numeric
+  bls_unemployed <- bls_unemployed %>%
+    mutate(total_unemployed_nsa = as.numeric(total_unemployed_nsa))
+  
+  # Check for non-numeric values and count NAs
+  non_numeric_values <- sum(is.na(as.numeric(bls_unemployed$total_unemployed_nsa)))
+  total_nas <- sum(is.na(bls_unemployed$total_unemployed_nsa))
+  
+  cat("Non-numeric values in total_unemployed_nsa:", non_numeric_values, "\n")
+  cat("Total NAs in total_unemployed_nsa:", total_nas, "\n")
+  
+  # Group and calculate the rolling mean
+  bls_unemployed <- bls_unemployed %>%
+    group_by(st) %>%
+    mutate(unemployed_avg = round(rollmean(total_unemployed_nsa, k = 12, align = "right", na.pad = TRUE), 0)) %>%
+    ungroup()
+  # LANCE
   
   # create a row for the US as a whole, not a US average:
   # note that the feds don't include PR and VI in their national unemployment numbers,
