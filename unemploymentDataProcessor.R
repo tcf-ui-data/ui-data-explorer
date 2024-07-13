@@ -1309,9 +1309,17 @@ labor_force_info <- bind_rows(
 ) %>% 
   pivot_wider(names_from = metric, values_from = value)
 
-# Output the result of pivot_wider() in the messages
-message("Result of pivot_wider():")
-message(capture.output(print(labor_force_info)))
+# Convert tibble to data frame
+labor_force_info_df <- as.data.frame(labor_force_info)
+
+# Set options to print more rows and columns
+options(max.print = 10000)  # Adjust this number based on your dataset size
+
+# Print the full data frame
+print(labor_force_info_df)
+
+# Inspect the structure of the data frame
+str(labor_force_info_df)
 
 # Continue with the rest of your code
 labor_force_info <- labor_force_info %>%
