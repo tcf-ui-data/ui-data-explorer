@@ -1309,22 +1309,24 @@ labor_force_info <- bind_rows(
 ) %>% 
   pivot_wider(names_from = metric, values_from = value)
 
-# Convert tibble to data frame
-labor_force_info_df <- as.data.frame(labor_force_info)
+# Unnest the list columns
+labor_force_info_unnested <- labor_force_info %>%
+  unnest(cols = c(labor_force_sa, labor_force_participation_rate_sa))
 
-# Set options to print more rows and columns
-options(max.print = 10000)  # Adjust this number based on your dataset size
+# Ensure the unnested columns are numeric
+labor_force_info_unnested <- labor_force_info_unnested %>%
+  mutate(
+    labor_force_sa = as.numeric(labor_force_sa),
+    labor_force_participation_rate_sa = as.numeric(labor_force_participation_rate_sa)
+  )
 
-# Print the full data frame
-print(labor_force_info_df)
-
-# Inspect the structure of the data frame
-str(labor_force_info_df)
-
-# Continue with the rest of your code
-labor_force_info <- labor_force_info %>%
-  mutate(civilian_non_insitutionalized_population_sa = 100 * as.numeric(labor_force_sa) / as.numeric(labor_force_participation_rate_sa)) %>% 
+# Perform the mutation
+labor_force_info_unnested <- labor_force_info_unnested %>%
+  mutate(
+    civilian_non_insitutionalized_population_sa = 100 * labor_force_sa / labor_force_participation_rate_sa
+  ) %>%
   pivot_longer(cols = 3:5, names_to = "metric")
+
 # LANCE
                      
 bls_unemployed <- bind_rows(
