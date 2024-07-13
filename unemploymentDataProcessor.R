@@ -1303,10 +1303,13 @@ secret_read <- function(location, name) {
 # without hitting a rate limit
 labor_force_info <- bind_rows(
   map_dfr(c("CLF16OV", "DCLF", paste0(state.abb, "LF")), get_fred_series_with_state_id, "labor_force_sa", sleep = TRUE),
-  map_dfr(c("CIVPART", paste0("LBSSA", str_pad(1:56,width = 2, side = "left", pad = "0"))), get_fred_series_with_state_id, "labor_force_participation_rate_sa", sleep = TRUE)
+  map_dfr(c("CIVPART", paste0("LBSSA", str_pad(1:56, width = 2, side = "left", pad = "0"))), get_fred_series_with_state_id, "labor_force_participation_rate_sa", sleep = TRUE)
 ) %>% 
   pivot_wider(names_from = metric, values_from = value) %>% 
-  mutate(civilian_non_insitutionalized_population_sa = 100 * labor_force_sa / labor_force_participation_rate_sa) %>% 
+  # Ensure columns are numeric
+  mutate(across(c(labor_force_sa, labor_force_participation_rate_sa), as.numeric)) %>%
+  # Calculate the new column
+  mutate(civilian_non_insitutionalized_population_sa = 100 * labor_force_sa / labor_force_participation_rate_sa) %>%
   pivot_longer(cols = 3:5, names_to = "metric")
 
 bls_unemployed <- bind_rows(
