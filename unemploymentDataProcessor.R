@@ -1297,37 +1297,28 @@ secret_read <- function(location, name) {
   )
 }
 
-
 # gets the unemployment rate and total unemployed for all 50 states + DC + the US;
 # uses a sleep within each request (1sec) so it takes on the order of 5 minutes to retrieve all of the data that we want
 # without hitting a rate limit
 # Define a function to process the labor force information
-process_labor_force_info <- function() {
-  labor_force_info <- bind_rows(
-    map_dfr(c("CLF16OV", "DCLF", paste0(state.abb, "LF")), get_fred_series_with_state_id, "labor_force_sa", sleep = TRUE),
-    map_dfr(c("CIVPART", paste0("LBSSA", str_pad(1:56, width = 2, side = "left", pad = "0"))), get_fred_series_with_state_id, "labor_force_participation_rate_sa", sleep = TRUE)
-  ) %>% 
-    pivot_wider(names_from = metric, values_from = value) %>%
-    mutate(
-      labor_force_sa = as.double(labor_force_sa),
-      labor_force_participation_rate_sa = as.double(labor_force_participation_rate_sa)
-    )
-  
-  # Debugging: Print types and values
-  print("After conversion to numeric:")
-  print(str(labor_force_info$labor_force_sa))
-  print(str(labor_force_info$labor_force_participation_rate_sa))
-  
-  labor_force_info <- labor_force_info %>%
-    mutate(civilian_non_insitutionalized_population_sa = 100 * labor_force_sa / labor_force_participation_rate_sa) %>% 
-    pivot_longer(cols = 3:5, names_to = "metric")
-  
-  return(labor_force_info)
-}
+# LANCE
+# Fetch labor force information and reshape the data
+labor_force_info <- bind_rows(
+  map_dfr(c("CLF16OV", "DCLF", paste0(state.abb, "LF")), get_fred_series_with_state_id, "labor_force_sa", sleep = TRUE),
+  map_dfr(c("CIVPART", paste0("LBSSA", str_pad(1:56, width = 2, side = "left", pad = "0"))), get_fred_series_with_state_id, "labor_force_participation_rate_sa", sleep = TRUE)
+) %>% 
+  pivot_wider(names_from = metric, values_from = value)
 
-# Execute the function
-# labor_force_info <- process_labor_force_info()
+# Output the result of pivot_wider() in the messages
+message("Result of pivot_wider():")
+message(capture.output(print(labor_force_info)))
 
+# Continue with the rest of your code
+labor_force_info <- labor_force_info %>%
+  mutate(civilian_non_insitutionalized_population_sa = 100 * as.numeric(labor_force_sa) / as.numeric(labor_force_participation_rate_sa)) %>% 
+  pivot_longer(cols = 3:5, names_to = "metric")
+# LANCE
+                     
 bls_unemployed <- bind_rows(
   map_dfr(c("UNRATE", "DCUR", paste0(state.abb, "UR")), get_fred_series_with_state_id, "unemployment_rate_sa", sleep = TRUE),
   map_dfr(c("UNRATENSA", "DCURN", paste0(state.abb, "URN")), get_fred_series_with_state_id, "unemployment_rate_nsa", sleep = TRUE),
