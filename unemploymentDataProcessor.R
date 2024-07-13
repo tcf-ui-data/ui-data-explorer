@@ -1326,7 +1326,7 @@ process_labor_force_info <- function() {
 }
 
 # Execute the function
-labor_force_info <- process_labor_force_info()
+# labor_force_info <- process_labor_force_info()
 
 bls_unemployed <- bind_rows(
   map_dfr(c("UNRATE", "DCUR", paste0(state.abb, "UR")), get_fred_series_with_state_id, "unemployment_rate_sa", sleep = TRUE),
