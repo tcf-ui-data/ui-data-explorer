@@ -651,7 +651,7 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
   
   # Unnest the list column total_unemployed_nsa
   bls_unemployed_long <- bls_unemployed %>%
-    unnest_longer(total_unemployed_nsa, names_sep = "_")
+    unnest(total_unemployed_nsa)
   
   # Group by st and calculate the rolling mean
   bls_unemployed_long <- bls_unemployed_long %>%
@@ -659,12 +659,8 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
     mutate(unemployed_avg = round(rollmean(total_unemployed_nsa, k = 12, align = "right", na.pad = TRUE), 0)) %>%
     ungroup()
   
-  # Pivot the data back to wide format if necessary
-  # If you need to retain the structure, use pivot_wider appropriately
-  bls_unemployed_wide <- bls_unemployed_long %>%
-    pivot_wider(names_from = rptdate, values_from = c(total_unemployed_nsa, unemployed_avg))
-  
-  # Arrange the final dataframe by st and rptdate
+  # Combine the results back into the original dataframe structure
+  # Ensure you retain all necessary columns
   bls_unemployed <- bls_unemployed_long %>%
     arrange(st, rptdate)
   # LANCE
