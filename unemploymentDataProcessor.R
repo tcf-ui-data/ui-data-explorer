@@ -643,20 +643,26 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
   # take the bls unemployment data and just extract the data that we need, which includes getting a 
   # 12 month moving averages of the unemployed number
   # LANCE
+  # Assuming your initial code is as follows:
   bls_unemployed <- bls_unemployed %>%
     filter(endsWith(metric, "nsa")) %>%
     pivot_wider(names_from = metric, values_from = value) %>%
     arrange(st, rptdate)
   
   # Unnest the list column total_unemployed_nsa
-  bls_unemployed <- bls_unemployed %>%
+  bls_unemployed_long <- bls_unemployed %>%
     unnest(total_unemployed_nsa)
   
   # Group by st and calculate the rolling mean
-  bls_unemployed <- bls_unemployed %>%
+  bls_unemployed_long <- bls_unemployed_long %>%
     group_by(st) %>%
-    mutate(unemployed_avg = round(rollmean(value, k = 12, align = "right", na.pad = TRUE), 0)) %>%
+    mutate(unemployed_avg = round(rollmean(total_unemployed_nsa, k = 12, align = "right", na.pad = TRUE), 0)) %>%
     ungroup()
+  
+  # Reassemble the data frame to its original structure
+  bls_unemployed <- bls_unemployed_long %>%
+    pivot_wider(names_from = metric, values_from = value) %>%
+    arrange(st, rptdate)
   # LANCE
   
   # create a row for the US as a whole, not a US average:
