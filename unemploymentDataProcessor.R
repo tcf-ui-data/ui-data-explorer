@@ -642,7 +642,7 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
   #message(names(bls_unemployed))
   # take the bls unemployment data and just extract the data that we need, which includes getting a 
   # 12 month moving averages of the unemployed number
-  # LANCE
+
   # Start with the provided code to filter and pivot the dataframe
   bls_unemployed <- bls_unemployed %>%
     filter(endsWith(metric, "nsa")) %>%
@@ -663,7 +663,7 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
   # Ensure you retain all necessary columns
   bls_unemployed <- bls_unemployed_long %>%
     arrange(st, rptdate)
-  # LANCE
+
   
   # create a row for the US as a whole, not a US average:
   # note that the feds don't include PR and VI in their national unemployment numbers,
@@ -1316,7 +1316,6 @@ secret_read <- function(location, name) {
 # uses a sleep within each request (1sec) so it takes on the order of 5 minutes to retrieve all of the data that we want
 # without hitting a rate limit
 # Define a function to process the labor force information
-# LANCE
 # Fetch labor force information and reshape the data
 labor_force_info <- bind_rows(
   map_dfr(c("CLF16OV", "DCLF", paste0(state.abb, "LF")), get_fred_series_with_state_id, "labor_force_sa", sleep = TRUE),
@@ -1342,7 +1341,6 @@ labor_force_info_unnested <- labor_force_info_unnested %>%
   ) %>%
   pivot_longer(cols = 3:5, names_to = "metric")
 
-# LANCE
                      
 bls_unemployed <- bind_rows(
   map_dfr(c("UNRATE", "DCUR", paste0(state.abb, "UR")), get_fred_series_with_state_id, "unemployment_rate_sa", sleep = TRUE),
