@@ -18,7 +18,7 @@ library(dplyr)
 
 message("Libraries loaded.")
 # fredr key
-fredr_set_key("1806f598daa5da6d213ff0166e740ebf")
+fredr_set_key(Sys.getenv("FRED_KEY"))
 # google sheet name
 sheet_name <- "1Wz98hOMQpYBUH8gt6udNv4xKExc66ioD_H1SP9-9J6k"
 
@@ -648,6 +648,9 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
     filter(endsWith(metric, "nsa")) %>%
     pivot_wider(names_from = metric, values_from = value) %>%
     arrange(st, rptdate)
+  
+  message(bls_unemployed)
+  quit()
   
   # Unnest the list column total_unemployed_nsa
   bls_unemployed_long <- bls_unemployed %>%
