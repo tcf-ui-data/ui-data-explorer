@@ -352,282 +352,287 @@ get_weekly_claims_data <- function() {
   
   
 }
-
-# disaster unemployment assistance information
-get_dua_data <- function() {
-  downloadUCData("https://oui.doleta.gov/unemploy/csv/ar902.csv") %>% # DUA 2020 data 
-    rename(dua_initial_appeals_total = c4,
-           dua_initial_appeals_self = c57,
-           dua_eligible_total = c5,
-           dua_eligible_self = c17,
-           dua_first_payments = c6,
-           dua_weeks_claimed = c21,
-           dua_weeks_compensated = c22,
-           dua_amount_compensated = c23,
-           dua_weeks_denied_total = c35,
-           dua_appeals_filed_state_total = c58,
-           dua_appeals_filed_ra_total = c59,
-           dua_appeals_disposed_state_total = c33,
-           dua_appeals_disposed_ra_total = c34,
-           dua_appeals_successful_state_total = c60,
-           dua_appeals_successful_ra_total = c61,
-           dua_appeals_filed_state_self = c62,
-           dua_appeals_filed_ra_self = c63,
-           dua_appeals_disposed_state_self = c45,
-           dua_appeals_disposed_ra_self = c46,
-           dua_appeals_successful_state_self = c64,
-           dua_appeals_successful_ra_self = c65,
-           dua_overpayments_cases_total = c49,
-           dua_overpayment_weeks_total = c50,
-           dua_overpayment_amount_total = c51,
-           dua_overpayments_cases_self = c53,
-           dua_overpayment_weeks_self = c54,
-           dua_overpayment_amount_self = c55,
-    ) %>% 
-    select(-starts_with("c"))
-}
+# PAUSING HERE - LANCE
 
 
-# pandemic unemployment assistance information
-get_pua_data <- function() {
-  downloadUCData("https://oui.doleta.gov/unemploy/csv/ap902.csv") %>% # DUA 2020 data 
-    rename(pua_initial_applications_total = c1,
-           pua_initial_applications_self = c7,
-           pua_eligible_total = c2,
-           pua_eligible_self = c8,
-           pua_first_payments = c3,
-           pua_weeks_claimed = c4,
-           pua_weeks_compensated = c5,
-           pua_amount_compensated = c6,
-           pua_weeks_denied_total = c9,
-           pua_appeals_filed_state_total = c10,
-           pua_appeals_filed_ra_total = c11,
-           pua_appeals_disposed_state_total = c12,
-           pua_appeals_disposed_ra_total = c13,
-           pua_appeals_successful_state_total = c14,
-           pua_appeals_successful_ra_total = c15,
-           pua_appeals_filed_state_self = c16,
-           pua_appeals_filed_ra_self = c17,
-           pua_appeals_disposed_state_self = c18,
-           pua_appeals_disposed_ra_self = c19,
-           pua_appeals_successful_state_self = c20,
-           pua_appeals_successful_ra_self = c21,
-           pua_overpayments_cases_total = c22,
-           pua_overpayment_weeks_total = c23,
-           pua_overpayment_amount_total = c24,
-           pua_overpayments_cases_self = c26,
-           pua_overpayment_weeks_self = c27,
-           pua_overpayment_amount_self = c28,
-    ) %>% 
-    mutate(pua_percent_eligible =  pua_eligible_total / pua_initial_applications_total,
-           pua_percent_applicants_self_employed = pua_initial_applications_self / pua_initial_applications_total,
-           pua_percent_eligible_self_employed = pua_eligible_self / pua_initial_applications_self,
-           monthly_pua_first_payments = pua_first_payments
-    ) %>% 
-    select(-starts_with("c"))
-}
-
-# trust fund solvency and puc $600 payments
-get_ui_financial_data <- function() {
-  df <- downloadUCData("https://oui.doleta.gov/unemploy/csv/ar2112.csv") %>%   # ar2112 data 
-    rename(trust_fund_balance = c3, puc_payments = c125, puc_payments_total = c124) %>%  #,pua_payments = c128) pua_payments doesn't yet exist!
-    select(-starts_with("c")) %>% 
-    mutate(puc_weeks = puc_payments_total / 600)
-  
-  # compute US Averages and add them into the df
-  usAvg <- df %>% 
-    group_by(rptdate) %>% 
-    summarize(across(where(is.numeric), mean, na.rm = T))
-  
-  df <- df %>% 
-    bind_rows(usAvg %>% mutate(st = "US (avg)"))
-}
+# # disaster unemployment assistance information
+# get_dua_data <- function() {
+#   downloadUCData("https://oui.doleta.gov/unemploy/csv/ar902.csv") %>% # DUA 2020 data 
+#     rename(dua_initial_appeals_total = c4,
+#            dua_initial_appeals_self = c57,
+#            dua_eligible_total = c5,
+#            dua_eligible_self = c17,
+#            dua_first_payments = c6,
+#            dua_weeks_claimed = c21,
+#            dua_weeks_compensated = c22,
+#            dua_amount_compensated = c23,
+#            dua_weeks_denied_total = c35,
+#            dua_appeals_filed_state_total = c58,
+#            dua_appeals_filed_ra_total = c59,
+#            dua_appeals_disposed_state_total = c33,
+#            dua_appeals_disposed_ra_total = c34,
+#            dua_appeals_successful_state_total = c60,
+#            dua_appeals_successful_ra_total = c61,
+#            dua_appeals_filed_state_self = c62,
+#            dua_appeals_filed_ra_self = c63,
+#            dua_appeals_disposed_state_self = c45,
+#            dua_appeals_disposed_ra_self = c46,
+#            dua_appeals_successful_state_self = c64,
+#            dua_appeals_successful_ra_self = c65,
+#            dua_overpayments_cases_total = c49,
+#            dua_overpayment_weeks_total = c50,
+#            dua_overpayment_amount_total = c51,
+#            dua_overpayments_cases_self = c53,
+#            dua_overpayment_weeks_self = c54,
+#            dua_overpayment_amount_self = c55,
+#     ) %>% 
+#     select(-starts_with("c"))
+# }
 
 
-# get and massage basic ui data like claims, payments, exhaustions, etc...
-get_basic_ui_information <- function() {
-  # download 5159 reports
-  ucClaimsPaymentsRegular <- downloadUCData("https://oui.doleta.gov/unemploy/csv/ar5159.csv") #5159 report
-  ucClaimsPaymentsExtended <- downloadUCData("https://oui.doleta.gov/unemploy/csv/ae5159.csv") #5159 report
-  ucClaimsPaymentsEUC91 <- downloadUCData("https://oui.doleta.gov/unemploy/csv/ac5159.csv") #5159 report
-  ucClaimsPaymentsTEUC02 <- downloadUCData("https://oui.doleta.gov/unemploy/csv/at5159.csv") #5159 report
-  ucClaimsPaymentsEUC08 <- downloadUCData("https://oui.doleta.gov/unemploy/csv/au5159.csv") #5159 report
-  ucClaimsPaymentsWorksharing <- downloadUCData("https://oui.doleta.gov/unemploy/csv/aw5159.csv")
-  ucClaimsPaymentsPEUC20 <- downloadUCData("https://oui.doleta.gov/unemploy/csv/ap5159.csv") # 5159 report
-  ucClaimsPaymentsPUC20 <- get_ui_financial_data()
-  ucClaimsPaymentsPUA20 <- get_pua_data()
+# # pandemic unemployment assistance information
+# get_pua_data <- function() {
+#   downloadUCData("https://oui.doleta.gov/unemploy/csv/ap902.csv") %>% # DUA 2020 data 
+#     rename(pua_initial_applications_total = c1,
+#            pua_initial_applications_self = c7,
+#            pua_eligible_total = c2,
+#            pua_eligible_self = c8,
+#            pua_first_payments = c3,
+#            pua_weeks_claimed = c4,
+#            pua_weeks_compensated = c5,
+#            pua_amount_compensated = c6,
+#            pua_weeks_denied_total = c9,
+#            pua_appeals_filed_state_total = c10,
+#            pua_appeals_filed_ra_total = c11,
+#            pua_appeals_disposed_state_total = c12,
+#            pua_appeals_disposed_ra_total = c13,
+#            pua_appeals_successful_state_total = c14,
+#            pua_appeals_successful_ra_total = c15,
+#            pua_appeals_filed_state_self = c16,
+#            pua_appeals_filed_ra_self = c17,
+#            pua_appeals_disposed_state_self = c18,
+#            pua_appeals_disposed_ra_self = c19,
+#            pua_appeals_successful_state_self = c20,
+#            pua_appeals_successful_ra_self = c21,
+#            pua_overpayments_cases_total = c22,
+#            pua_overpayment_weeks_total = c23,
+#            pua_overpayment_amount_total = c24,
+#            pua_overpayments_cases_self = c26,
+#            pua_overpayment_weeks_self = c27,
+#            pua_overpayment_amount_self = c28,
+#     ) %>% 
+#     mutate(pua_percent_eligible =  pua_eligible_total / pua_initial_applications_total,
+#            pua_percent_applicants_self_employed = pua_initial_applications_self / pua_initial_applications_total,
+#            pua_percent_eligible_self_employed = pua_eligible_self / pua_initial_applications_self,
+#            monthly_pua_first_payments = pua_first_payments
+#     ) %>% 
+#     select(-starts_with("c"))
+# }
 
-  # EUC data from the 80s isn't available on the DOL website, but DOL provided a copy of those claims
-  ucClaimsPaymentsEUC80s <- read.csv(file.path(config::get("DATA_DIR"), "EUC-1982-1987-USDOLData.csv"))
-  ucClaimsPaymentsEUC80s <- ucClaimsPaymentsEUC80s %>% 
-    mutate(rptdate =  as.Date(rptdate))
+# # trust fund solvency and puc $600 payments
+# get_ui_financial_data <- function() {
+#   df <- downloadUCData("https://oui.doleta.gov/unemploy/csv/ar2112.csv") %>%   # ar2112 data 
+#     rename(trust_fund_balance = c3, puc_payments = c125, puc_payments_total = c124) %>%  #,pua_payments = c128) pua_payments doesn't yet exist!
+#     select(-starts_with("c")) %>% 
+#     mutate(puc_weeks = puc_payments_total / 600)
   
-  # name the columns that we care about for later code readability
-  ucClaimsPaymentsRegular <- ucClaimsPaymentsRegular %>% 
-    rename(monthly_initial_claims = c1,
-           monthly_ucfe_initial_claims = c7,
-           monthly_ucx_initial_claims = c13,
-           monthly_initial_additional_intrastate = c3,
-           monthly_first_payments = c51,
-           monthly_first_payments_intrastate = c52,
-           monthly_first_payments_interstate = c53,
-           monthly_first_payments_ufce = c54,
-           monthly_first_payments_ucx = c55,
-           monthly_weeks_compensated = c38,
-           monthly_exhaustion = c56,
-           monthly_exhaustion_ufce = c57,
-           monthly_exhaustion_ucx = c58,
-           monthly_state_intrastate = c21, 
-           monthly_state_liable = c24, 
-           monthly_ucfe_instrastate = c27, 
-           monthly_ufce_liable = c30,
-           monthly_ufce_compensated = c47,
-           monthly_ucx_intrastate = c33, 
-           monthly_ucx_liable = c36, 
-           monthly_state_compensated = c45,
-           monthly_ucfe_ucx_compensated = c48) %>% 
-    mutate(monthly_weeks_claimed = c22 + monthly_state_intrastate,
-           monthly_partial_weeks_compensated = monthly_weeks_compensated - c39,
-           monthly_first_payments_as_prop_claims = monthly_first_payments / monthly_initial_claims,
-           monthly_state_first_payments = monthly_first_payments, #+ monthly_first_payments_ufce + monthly_first_payments_ucx,
-           monthly_exhaustion_total = monthly_exhaustion + monthly_exhaustion_ucx + monthly_exhaustion_ufce) %>% 
-    select(-starts_with("c"))
+#   # compute US Averages and add them into the df
+#   usAvg <- df %>% 
+#     group_by(rptdate) %>% 
+#     summarize(across(where(is.numeric), mean, na.rm = T))
   
-  ucClaimsPaymentsExtended <- ucClaimsPaymentsExtended %>% 
-    rename(eb_monthly_initial_claims = c1,
-           eb_monthly_additional_intrastate = c46,
-           eb_monthly_first_payments = c40,
-           eb_monthly_weeks_compensated = c29,
-           eb_month_exhuastion = c43,
-           eb_state_intrastate = c12, 
-           eb_state_intrastate_filed_from_agent_state = c13, 
-           eb_state_intrastate_received_as_liable_state = c15, 
-           eb_state_liable = c15, 
-           eb_ucfe_instrastate = c18, 
-           eb_ufce_liable = c21, 
-           eb_ucx_intrastate = c24, 
-           eb_ucx_liable = c27,
-           eb_state_compensated = c35, 
-           eb_ucfe_ucx_compensated = c37) %>% 
-    select(-starts_with("c"))
+#   df <- df %>% 
+#     bind_rows(usAvg %>% mutate(st = "US (avg)"))
+# }
+
+
+# # get and massage basic ui data like claims, payments, exhaustions, etc...
+# get_basic_ui_information <- function() {
+#   # download 5159 reports
+#   ucClaimsPaymentsRegular <- downloadUCData("https://oui.doleta.gov/unemploy/csv/ar5159.csv") #5159 report
+#   ucClaimsPaymentsExtended <- downloadUCData("https://oui.doleta.gov/unemploy/csv/ae5159.csv") #5159 report
+#   ucClaimsPaymentsEUC91 <- downloadUCData("https://oui.doleta.gov/unemploy/csv/ac5159.csv") #5159 report
+#   ucClaimsPaymentsTEUC02 <- downloadUCData("https://oui.doleta.gov/unemploy/csv/at5159.csv") #5159 report
+#   ucClaimsPaymentsEUC08 <- downloadUCData("https://oui.doleta.gov/unemploy/csv/au5159.csv") #5159 report
+#   ucClaimsPaymentsWorksharing <- downloadUCData("https://oui.doleta.gov/unemploy/csv/aw5159.csv")
+#   ucClaimsPaymentsPEUC20 <- downloadUCData("https://oui.doleta.gov/unemploy/csv/ap5159.csv") # 5159 report
+#   ucClaimsPaymentsPUC20 <- get_ui_financial_data()
+#   ucClaimsPaymentsPUA20 <- get_pua_data()
+
+#   # EUC data from the 80s isn't available on the DOL website, but DOL provided a copy of those claims
+#   ucClaimsPaymentsEUC80s <- read.csv(file.path(config::get("DATA_DIR"), "EUC-1982-1987-USDOLData.csv"))
+#   ucClaimsPaymentsEUC80s <- ucClaimsPaymentsEUC80s %>% 
+#     mutate(rptdate =  as.Date(rptdate))
   
-  ucClaimsPaymentsEUC91 <- ucClaimsPaymentsEUC91 %>% 
-    rename(euc91_monthly_initial_claims = c1,
-           euc91_monthly_first_payments = c45,
-           euc91_monthly_weeks_compensated = c32,
-           euc91_month_exhuastion = c50,
-           euc91_state_intrastate = c19, 
-           euc91_state_liable = c22, 
-           euc91_ucfe_instrastate = c23, 
-           euc91_ufce_liable = c26, 
-           euc91_ucx_intrastate = c27, 
-           euc91_ucx_liable = c30, 
-           euc91_state_compensated = c38,
-           euc91_ucfe_ucx_compensated = c42) %>% 
-    select(-starts_with("c"))
+#   # name the columns that we care about for later code readability
+#   ucClaimsPaymentsRegular <- ucClaimsPaymentsRegular %>% 
+#     rename(monthly_initial_claims = c1,
+#            monthly_ucfe_initial_claims = c7,
+#            monthly_ucx_initial_claims = c13,
+#            monthly_initial_additional_intrastate = c3,
+#            monthly_first_payments = c51,
+#            monthly_first_payments_intrastate = c52,
+#            monthly_first_payments_interstate = c53,
+#            monthly_first_payments_ufce = c54,
+#            monthly_first_payments_ucx = c55,
+#            monthly_weeks_compensated = c38,
+#            monthly_exhaustion = c56,
+#            monthly_exhaustion_ufce = c57,
+#            monthly_exhaustion_ucx = c58,
+#            monthly_state_intrastate = c21, 
+#            monthly_state_liable = c24, 
+#            monthly_ucfe_instrastate = c27, 
+#            monthly_ufce_liable = c30,
+#            monthly_ufce_compensated = c47,
+#            monthly_ucx_intrastate = c33, 
+#            monthly_ucx_liable = c36, 
+#            monthly_state_compensated = c45,
+#            monthly_ucfe_ucx_compensated = c48) %>% 
+#     mutate(monthly_weeks_claimed = c22 + monthly_state_intrastate,
+#            monthly_partial_weeks_compensated = monthly_weeks_compensated - c39,
+#            monthly_first_payments_as_prop_claims = monthly_first_payments / monthly_initial_claims,
+#            monthly_state_first_payments = monthly_first_payments, #+ monthly_first_payments_ufce + monthly_first_payments_ucx,
+#            monthly_exhaustion_total = monthly_exhaustion + monthly_exhaustion_ucx + monthly_exhaustion_ufce) %>% 
+#     select(-starts_with("c"))
   
-  ucClaimsPaymentsTEUC02 <- ucClaimsPaymentsTEUC02 %>% 
-    rename(teuc02_monthly_initial_claims = c1,
-           teuc02_monthly_additional_intrastate = c46,
-           teuc02_monthly_first_payments = c40,
-           teuc02_monthly_weeks_compensated = c29,
-           teuc02_month_exhuastion = c43,
-           teuc02_state_intrastate = c12, 
-           teuc02_state_liable = c15, 
-           teuc02_ucfe_instrastate = c18, 
-           teuc02_ufce_liable = c21, 
-           teuc02_ucx_intrastate = c24, 
-           teuc02_ucx_liable = c27,
-           teuc02_state_compensated = c35) %>% 
-    select(-starts_with("c"))
+#   ucClaimsPaymentsExtended <- ucClaimsPaymentsExtended %>% 
+#     rename(eb_monthly_initial_claims = c1,
+#            eb_monthly_additional_intrastate = c46,
+#            eb_monthly_first_payments = c40,
+#            eb_monthly_weeks_compensated = c29,
+#            eb_month_exhuastion = c43,
+#            eb_state_intrastate = c12, 
+#            eb_state_intrastate_filed_from_agent_state = c13, 
+#            eb_state_intrastate_received_as_liable_state = c15, 
+#            eb_state_liable = c15, 
+#            eb_ucfe_instrastate = c18, 
+#            eb_ufce_liable = c21, 
+#            eb_ucx_intrastate = c24, 
+#            eb_ucx_liable = c27,
+#            eb_state_compensated = c35, 
+#            eb_ucfe_ucx_compensated = c37) %>% 
+#     select(-starts_with("c"))
+  
+#   ucClaimsPaymentsEUC91 <- ucClaimsPaymentsEUC91 %>% 
+#     rename(euc91_monthly_initial_claims = c1,
+#            euc91_monthly_first_payments = c45,
+#            euc91_monthly_weeks_compensated = c32,
+#            euc91_month_exhuastion = c50,
+#            euc91_state_intrastate = c19, 
+#            euc91_state_liable = c22, 
+#            euc91_ucfe_instrastate = c23, 
+#            euc91_ufce_liable = c26, 
+#            euc91_ucx_intrastate = c27, 
+#            euc91_ucx_liable = c30, 
+#            euc91_state_compensated = c38,
+#            euc91_ucfe_ucx_compensated = c42) %>% 
+#     select(-starts_with("c"))
+  
+#   ucClaimsPaymentsTEUC02 <- ucClaimsPaymentsTEUC02 %>% 
+#     rename(teuc02_monthly_initial_claims = c1,
+#            teuc02_monthly_additional_intrastate = c46,
+#            teuc02_monthly_first_payments = c40,
+#            teuc02_monthly_weeks_compensated = c29,
+#            teuc02_month_exhuastion = c43,
+#            teuc02_state_intrastate = c12, 
+#            teuc02_state_liable = c15, 
+#            teuc02_ucfe_instrastate = c18, 
+#            teuc02_ufce_liable = c21, 
+#            teuc02_ucx_intrastate = c24, 
+#            teuc02_ucx_liable = c27,
+#            teuc02_state_compensated = c35) %>% 
+#     select(-starts_with("c"))
   
 
-  ucClaimsPaymentsEUC08 <- ucClaimsPaymentsEUC08 %>% 
-    rename(euc08_monthly_initial_claims = c1,
-           euc08_monthly_additional_intrastate = c46,
-           euc08_monthly_first_payments = c40,
-           euc08_monthly_weeks_compensated = c29,
-           euc08_month_exhuastion = c43,
-           euc08_state_intrastate = c12, 
-           euc08_state_liable = c15, 
-           euc08_ucfe_instrastate = c18, 
-           euc08_ufce_liable = c21, 
-           euc08_ucx_intrastate = c24, 
-           euc08_ucx_liable = c27,
-           euc08_state_compensated = c35, 
-           euc08_ucfe_ucx_compensated = c37,
-           euc_second_tier_state_compensated = c57, 
-           euc_second_tier_ucfe_ucx_compensated = c59, 
-           euc_third_tier_state_compensated = c73,
-           euc_third_tier_ucfe_ucx_compensated = c75) %>% 
-    select(-starts_with("c"))
+#   ucClaimsPaymentsEUC08 <- ucClaimsPaymentsEUC08 %>% 
+#     rename(euc08_monthly_initial_claims = c1,
+#            euc08_monthly_additional_intrastate = c46,
+#            euc08_monthly_first_payments = c40,
+#            euc08_monthly_weeks_compensated = c29,
+#            euc08_month_exhuastion = c43,
+#            euc08_state_intrastate = c12, 
+#            euc08_state_liable = c15, 
+#            euc08_ucfe_instrastate = c18, 
+#            euc08_ufce_liable = c21, 
+#            euc08_ucx_intrastate = c24, 
+#            euc08_ucx_liable = c27,
+#            euc08_state_compensated = c35, 
+#            euc08_ucfe_ucx_compensated = c37,
+#            euc_second_tier_state_compensated = c57, 
+#            euc_second_tier_ucfe_ucx_compensated = c59, 
+#            euc_third_tier_state_compensated = c73,
+#            euc_third_tier_ucfe_ucx_compensated = c75) %>% 
+#     select(-starts_with("c"))
   
-  ucClaimsPaymentsWorksharing <- ucClaimsPaymentsWorksharing %>% 
-    mutate(workshare_initial_claims = c1 + c2) %>% 
-    rename(workshare_continued_claims = c3,
-           workshare_weeks_compensated = c4,
-           workshare_first_payments = c6) %>% 
-    select(-starts_with("c"))
+#   ucClaimsPaymentsWorksharing <- ucClaimsPaymentsWorksharing %>% 
+#     mutate(workshare_initial_claims = c1 + c2) %>% 
+#     rename(workshare_continued_claims = c3,
+#            workshare_weeks_compensated = c4,
+#            workshare_first_payments = c6) %>% 
+#     select(-starts_with("c"))
 
-  # pandemic EUC  
-  ucClaimsPaymentsPEUC20 <- ucClaimsPaymentsPEUC20 %>% 
-    rename(peuc20_monthly_initial_claims = c1,
-           peuc20_monthly_interstate_filed_from_agent_state = c2,
-           peuc20_monthly_interstate_received_as_liability = c3,
-           peuc20_monthly_first_payments = c40,
-           peuc20_monthly_weeks_compensated = c29,
-           peuc20_monthly_exhuastion = c43,
-           peuc20_state_intrastate = c12,
-           peuc20_state_intrastate_file_from_agent_state = c13,
-           peuc20_state_intrastate_received_as_liability = c15,
-           peuc20_state_liable = c15, 
-           peuc20_ucfe_instrastate = c18, 
-           peuc20_ufce_liable = c21, 
-           peuc20_ucx_intrastate = c24, 
-           peuc20_ucx_liable = c27,
-           peuc20_state_compensated = c35, 
-           peuc20_ucfe_ucx_compensated = c37) %>% 
-    select(-starts_with("c"))
+#   # pandemic EUC  
+#   ucClaimsPaymentsPEUC20 <- ucClaimsPaymentsPEUC20 %>% 
+#     rename(peuc20_monthly_initial_claims = c1,
+#            peuc20_monthly_interstate_filed_from_agent_state = c2,
+#            peuc20_monthly_interstate_received_as_liability = c3,
+#            peuc20_monthly_first_payments = c40,
+#            peuc20_monthly_weeks_compensated = c29,
+#            peuc20_monthly_exhuastion = c43,
+#            peuc20_state_intrastate = c12,
+#            peuc20_state_intrastate_file_from_agent_state = c13,
+#            peuc20_state_intrastate_received_as_liability = c15,
+#            peuc20_state_liable = c15, 
+#            peuc20_ucfe_instrastate = c18, 
+#            peuc20_ufce_liable = c21, 
+#            peuc20_ucx_intrastate = c24, 
+#            peuc20_ucx_liable = c27,
+#            peuc20_state_compensated = c35, 
+#            peuc20_ucfe_ucx_compensated = c37) %>% 
+#     select(-starts_with("c"))
   
-  # merge the different datasets together and backfill with 0 if there is no data for a month
-  all_cols <- c("st","rptdate")
-  ucClaimsPayments <- ucClaimsPaymentsRegular %>% 
-    left_join(ucClaimsPaymentsExtended, by = all_cols) %>% 
-    left_join(ucClaimsPaymentsEUC91, by = all_cols) %>% 
-    left_join(ucClaimsPaymentsTEUC02, by = all_cols) %>% 
-    left_join(ucClaimsPaymentsEUC08, by = all_cols) %>% 
-    left_join(ucClaimsPaymentsEUC80s, by = all_cols) %>%
-    left_join(ucClaimsPaymentsWorksharing, by = all_cols) %>%
-    left_join(ucClaimsPaymentsPEUC20, by = all_cols) %>% 
-    left_join(ucClaimsPaymentsPUC20, by = all_cols) %>% 
-    left_join(ucClaimsPaymentsPUA20, by = all_cols) %>% 
-    #left_join(pua_claims, by = all_cols) %>% 
-    replace(is.na(.), 0) %>% 
-    # added this unique because on 6/12/2021, I found that there were a handful of
-    # months where PEUC20 was repeating months.  the unique just ensures that
-    # the same row doesn't appear 2x
-    unique()
+#   # merge the different datasets together and backfill with 0 if there is no data for a month
+#   all_cols <- c("st","rptdate")
+#   ucClaimsPayments <- ucClaimsPaymentsRegular %>% 
+#     left_join(ucClaimsPaymentsExtended, by = all_cols) %>% 
+#     left_join(ucClaimsPaymentsEUC91, by = all_cols) %>% 
+#     left_join(ucClaimsPaymentsTEUC02, by = all_cols) %>% 
+#     left_join(ucClaimsPaymentsEUC08, by = all_cols) %>% 
+#     left_join(ucClaimsPaymentsEUC80s, by = all_cols) %>%
+#     left_join(ucClaimsPaymentsWorksharing, by = all_cols) %>%
+#     left_join(ucClaimsPaymentsPEUC20, by = all_cols) %>% 
+#     left_join(ucClaimsPaymentsPUC20, by = all_cols) %>% 
+#     left_join(ucClaimsPaymentsPUA20, by = all_cols) %>% 
+#     #left_join(pua_claims, by = all_cols) %>% 
+#     replace(is.na(.), 0) %>% 
+#     # added this unique because on 6/12/2021, I found that there were a handful of
+#     # months where PEUC20 was repeating months.  the unique just ensures that
+#     # the same row doesn't appear 2x
+#     unique()
   
-  # compute US Averages and add them into the df
-  usAvg <- ucClaimsPayments %>% 
-    group_by(rptdate) %>% 
-    summarize(across(where(is.numeric), mean, na.rm = T))
+#   # compute US Averages and add them into the df
+#   usAvg <- ucClaimsPayments %>% 
+#     group_by(rptdate) %>% 
+#     summarize(across(where(is.numeric), mean, na.rm = T))
   
-  ucClaimsPayments <- ucClaimsPayments %>% 
-    bind_rows(usAvg %>% mutate(st = "US (avg)")) %>% 
-    group_by(st) %>% 
-    mutate(monthly_initial_claims_12_mo_avg = rollmean(monthly_initial_claims, 12, align = "right", na.pad = T),
-           monthly_first_payments_12_mo_avg = rollmean(monthly_first_payments, 12, align = "right", na.pad = T),
-           monthly_exhaustion_12_mo_avg = rollmean(monthly_exhaustion, 12, align = "right", na.pad = T),
-           monthly_first_payments_as_prop_claims_12_mo_avg = monthly_first_payments_12_mo_avg / monthly_initial_claims_12_mo_avg,
-           # some data is quarterly, so create a quarterly number
-           past_quarter_initial_claims = rollapply(monthly_initial_claims, width = 3, FUN = sum, partial = F, fill = NA, align = "right", na.rm = T)
-    ) %>% 
-    ungroup()
+#   ucClaimsPayments <- ucClaimsPayments %>% 
+#     bind_rows(usAvg %>% mutate(st = "US (avg)")) %>% 
+#     group_by(st) %>% 
+#     mutate(monthly_initial_claims_12_mo_avg = rollmean(monthly_initial_claims, 12, align = "right", na.pad = T),
+#            monthly_first_payments_12_mo_avg = rollmean(monthly_first_payments, 12, align = "right", na.pad = T),
+#            monthly_exhaustion_12_mo_avg = rollmean(monthly_exhaustion, 12, align = "right", na.pad = T),
+#            monthly_first_payments_as_prop_claims_12_mo_avg = monthly_first_payments_12_mo_avg / monthly_initial_claims_12_mo_avg,
+#            # some data is quarterly, so create a quarterly number
+#            past_quarter_initial_claims = rollapply(monthly_initial_claims, width = 3, FUN = sum, partial = F, fill = NA, align = "right", na.rm = T)
+#     ) %>% 
+#     ungroup()
     
-  return(ucClaimsPayments)
+#   return(ucClaimsPayments)
   
-}
+# }
+
+# TO HERE - LANCE
+
 
 # combine bls unemployed info with general unemployment continuing claims numbers to get a recipiency rate
 # generally speaking, recipiency rate is total continued claims in an average week / total unemployed over that week
@@ -645,10 +650,10 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
   bls_unemployed <- bls_unemployed %>%
     filter(endsWith(metric, "nsa")) %>% 
     pivot_wider(names_from = metric, values_from = value) %>% 
-    arrange(st, rptdate) %>% 
+    arrange(st, rptdate) %>%
+    {print(.); .} %>%  # Print the entire data frame
     group_by(st) %>% 
-    ungroup() %>%  # Remove any nested grouping
-    group_by(st) %>%  # Group again by the correct level
+    # Continue with the rest of your operations
     mutate(unemployed_avg = round(rollmean(total_unemployed_nsa, k = 12, align = "right", fill = NA), 0)) %>% 
     ungroup()
 
