@@ -638,17 +638,19 @@ get_basic_ui_information <- function() {
 getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
 {
   message("Getting recipency")
-  #message("columns of bls_unemployed:")
-  #message(names(bls_unemployed))
+  message("columns of bls_unemployed:")
+  message(names(bls_unemployed))
   # take the bls unemployment data and just extract the data that we need, which includes getting a 
   # 12 month moving averages of the unemployed number
   bls_unemployed <- bls_unemployed %>%
-      filter(endsWith(metric, "nsa")) %>% 
-      pivot_wider(names_from = metric, values_from = value) %>% 
-      arrange(st, rptdate) %>% 
-      group_by(st) %>% 
-      mutate(unemployed_avg = round(rollmean(total_unemployed_nsa, k = 12, align = "right", fill = NA), 0)) %>% 
-      ungroup()
+    filter(endsWith(metric, "nsa")) %>% 
+    pivot_wider(names_from = metric, values_from = value) %>% 
+    arrange(st, rptdate) %>% 
+    group_by(st) %>% 
+    ungroup() %>%  # Remove any nested grouping
+    group_by(st) %>%  # Group again by the correct level
+    mutate(unemployed_avg = round(rollmean(total_unemployed_nsa, k = 12, align = "right", fill = NA), 0)) %>% 
+    ungroup()
 
   
   # create a row for the US as a whole, not a US average:
