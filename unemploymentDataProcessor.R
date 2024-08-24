@@ -15,6 +15,8 @@ library(googlesheets4)
 library(googledrive)
 library(sodium,verbose = TRUE)
 library(dplyr)
+library(purrr)
+library(tidyr)
 
 message("Libraries loaded.")
 # fredr key
@@ -655,7 +657,13 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
 
   # Print the entire data frame
   print(bls_unemployed_before_unnest)
-  
+  # Check the structure of the 'unemployment_rate_nsa' column
+  str(bls_unemployed_before_unnest$unemployment_rate_nsa)
+
+  bls_unemployed_before_unnest <- bls_unemployed_before_unnest %>%
+    mutate(unemployment_rate_nsa = map(unemployment_rate_nsa, ~ as.numeric(unlist(.x)))) %>%
+    unnest(cols = c(unemployment_rate_nsa))
+    
   # Proceed with unnesting and further operations
   bls_unemployed <- bls_unemployed_before_unnest  %>%
     arrange(st, rptdate) %>%
