@@ -644,15 +644,25 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
   message(names(bls_unemployed))
   # take the bls unemployment data and just extract the data that we need, which includes getting a 
   # 12 month moving averages of the unemployed number
-  bls_unemployed <- bls_unemployed %>%
-    filter(endsWith(metric, "nsa")) %>% 
-    pivot_wider(names_from = metric, values_from = value) %>% 
-    arrange(st, rptdate) %>%
-    {print(.); .} %>%  # Print the entire data frame
-    group_by(st) %>% 
-    # Continue with the rest of your operations
-    mutate(unemployed_avg = round(rollmean(total_unemployed_nsa, k = 12, align = "right", fill = NA), 0)) %>% 
-    ungroup()
+  
+  # Set options to display all rows and columns
+  options(tibble.print_max = Inf, tibble.print_min = Inf)
+  
+  # Print the data frame before unnesting
+  bls_unemployed_before_unnest <- bls_unemployed %>%
+      filter(endsWith(metric, "nsa")) %>% 
+      pivot_wider(names_from = metric, values_from = value) %>% 
+      arrange(st, rptdate)
+  
+  # Print the entire data frame
+  print(bls_unemployed_before_unnest)
+  
+  # Proceed with unnesting and further operations
+  bls_unemployed <- bls_unemployed_before_unnest %>%
+      unnest(cols = c(labor_force_sa, labor_force_participa, unemployment_rate_nsa)) %>%
+      group_by(st) %>%
+      mutate(unemployed_avg = round(rollmean(unemployment_rate_nsa, k = 12, align = "right", fill = NA), 0)) %>%
+      ungroup()
 
   
   # create a row for the US as a whole, not a US average:
