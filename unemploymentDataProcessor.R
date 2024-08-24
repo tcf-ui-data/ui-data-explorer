@@ -650,29 +650,35 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
   # Set options to display all rows and columns
   options(tibble.print_max = Inf, tibble.print_min = Inf)
   
-  # Print the data frame before unnesting
+  # Step 1: Pivot the data and print the structure
   bls_unemployed_before_unnest <- bls_unemployed %>%
     filter(endsWith(metric, "nsa")) %>% 
-    pivot_wider(names_from = metric, values_from = value) 
-
+    pivot_wider(names_from = metric, values_from = value)
+  
   # Print the entire data frame
   print(bls_unemployed_before_unnest)
+  
   # Check the structure of the 'unemployment_rate_nsa' column
   str(bls_unemployed_before_unnest$unemployment_rate_nsa)
-
-  bls_unemployed_before_unnest <- bls_unemployed_before_unnest %>%
-    mutate(unemployment_rate_nsa = map(unemployment_rate_nsa, ~ as.numeric(unlist(.x)))) %>%
-    unnest(cols = c(unemployment_rate_nsa))
-    
-  # Proceed with unnesting and further operations
-  bls_unemployed <- bls_unemployed_before_unnest  %>%
+  
+  # Step 2: Manually expand the list column into separate rows
+  bls_unemployed_expanded <- bls_unemployed_before_unnest %>%
+    mutate(unemployment_rate_nsa = map(unemployment_rate_nsa, ~ as.data.frame(.x))) %>%
+    unnest_longer(unemployment_rate_nsa) %>%
+    rename(unemployment_rate = unemployment_rate_nsa)
+  
+  # Print the expanded data frame
+  print(bls_unemployed_expanded)
+  
+  # Step 3: Further processing on the expanded data frame
+  bls_unemployed <- bls_unemployed_expanded %>%
     arrange(st, rptdate) %>%
-    unnest(cols = c(unemployment_rate_nsa))  %>%
     group_by(st) %>%
-      mutate(unemployed_avg = round(rollmean(unemployment_rate_nsa, k = 12, align = "right", fill = NA), 0)) %>%
-      ungroup()
-  # Print the entire data frame
-  print(bls_unemployed_before_unnest)
+    mutate(unemployed_avg = round(rollmean(unemployment_rate, k = 12, align = "right", fill = NA), 0)) %>%
+    ungroup()
+  
+  # Print the final data frame
+  print(bls_unemployed)
   
   # create a row for the US as a whole, not a US average:
   # note that the feds don't include PR and VI in their national unemployment numbers,
