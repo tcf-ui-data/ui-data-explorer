@@ -651,14 +651,13 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
   # Print the data frame before unnesting
   bls_unemployed_before_unnest <- bls_unemployed %>%
     filter(endsWith(metric, "nsa")) %>% 
-    pivot_wider(names_from = metric, values_from = value) %>% 
-   
+    pivot_wider(names_from = metric, values_from = value) 
 
   # Print the entire data frame
   print(bls_unemployed_before_unnest)
   
   # Proceed with unnesting and further operations
-  bls_unemployed <- bls_unemployed_before_unnest
+  bls_unemployed <- bls_unemployed_before_unnest  %>%
     arrange(st, rptdate) %>%
     unnest(cols = c(unemployment_rate_nsa))  %>%
     group_by(st) %>%
