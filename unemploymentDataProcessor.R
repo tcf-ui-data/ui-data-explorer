@@ -663,7 +663,8 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
     group_by(st) %>%
       mutate(unemployed_avg = round(rollmean(unemployment_rate_nsa, k = 12, align = "right", fill = NA), 0)) %>%
       ungroup()
-
+  # Print the entire data frame
+  print(bls_unemployed_before_unnest)
   
   # create a row for the US as a whole, not a US average:
   # note that the feds don't include PR and VI in their national unemployment numbers,
