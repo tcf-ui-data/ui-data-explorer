@@ -197,6 +197,8 @@ get_fred_series_with_state_id <- function(series, metric_name, sleep = FALSE, st
   
   # if we got an error, then end the function here.
   if(is.null(df)) return(df)
+  message(paste("Returned df:"))
+  print(df)
   
   # get the state abbreviation
   state = get_state_from_series_id(series)
@@ -214,7 +216,7 @@ get_fred_series_with_state_id <- function(series, metric_name, sleep = FALSE, st
   
   # sleep to avoid a rate limitation, if need be
   # if(sleep) Sys.sleep(config::get("FRED_SLEEP_TIME")) --LANCE
-  if(sleep) Sys.sleep(0.5)
+  if(sleep) Sys.sleep(0.6)
 
   print(df)
   return(df)
