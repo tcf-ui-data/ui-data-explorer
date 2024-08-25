@@ -222,7 +222,7 @@ get_fred_series_with_state_id <- function(series, metric_name, sleep = FALSE, st
 get_state_from_series_id <- function(series) {
   state <- fredr_series_tags(series) %>% 
     filter(group_id == "geo") %>% 
-    slice(n()) %>% 
+    slice(1) %>% 
     pull(name) %>% 
     toupper()
   
