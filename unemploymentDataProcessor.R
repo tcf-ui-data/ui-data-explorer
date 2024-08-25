@@ -213,7 +213,8 @@ get_fred_series_with_state_id <- function(series, metric_name, sleep = FALSE, st
     select(rptdate, st, metric, value)
   
   # sleep to avoid a rate limitation, if need be
-  if(sleep) Sys.sleep(config::get("FRED_SLEEP_TIME"))
+  # if(sleep) Sys.sleep(config::get("FRED_SLEEP_TIME")) --LANCE
+  if(sleep) Sys.sleep(0.5)
   
   return(df)
 }
@@ -1356,23 +1357,13 @@ labor_force_info <- bind_rows(
 ) %>% 
   pivot_wider(names_from = metric, values_from = value)
 
-# Unnest the list columns
-labor_force_info_unnested <- labor_force_info %>%
-  unnest(cols = c(labor_force_sa, labor_force_participation_rate_sa))
-
-# Ensure the unnested columns are numeric
-labor_force_info_unnested <- labor_force_info_unnested %>%
-  mutate(
-    labor_force_sa = as.numeric(labor_force_sa),
-    labor_force_participation_rate_sa = as.numeric(labor_force_participation_rate_sa)
-  )
-
-# Perform the mutation
-labor_force_info_unnested <- labor_force_info_unnested %>%
-  mutate(
-    civilian_non_insitutionalized_population_sa = 100 * labor_force_sa / labor_force_participation_rate_sa
-  ) %>%
-  pivot_longer(cols = 3:5, names_to = "metric")
+  # Print the dataframe before the mutate step
+  print(labor_force_info)
+  
+  # Proceed with the mutate and further operations
+  labor_force_info <- labor_force_info %>%
+    mutate(civilian_non_insitutionalized_population_sa = 100 * labor_force_sa / labor_force_participation_rate_sa) %>% 
+    pivot_longer(cols = 3:5, names_to = "metric")
 
                      
 bls_unemployed <- bind_rows(
