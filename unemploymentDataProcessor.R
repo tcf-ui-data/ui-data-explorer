@@ -15,8 +15,6 @@ library(googlesheets4)
 library(googledrive)
 library(sodium,verbose = TRUE)
 library(dplyr)
-library(purrr)
-library(tidyr)
 
 message("Libraries loaded.")
 # fredr key
@@ -197,8 +195,6 @@ get_fred_series_with_state_id <- function(series, metric_name, sleep = FALSE, st
   
   # if we got an error, then end the function here.
   if(is.null(df)) return(df)
-  message(paste("Returned df:"))
-  print(df)
   
   # get the state abbreviation
   state = get_state_from_series_id(series)
@@ -216,8 +212,7 @@ get_fred_series_with_state_id <- function(series, metric_name, sleep = FALSE, st
   
   # sleep to avoid a rate limitation, if need be
   if(sleep) Sys.sleep(config::get("FRED_SLEEP_TIME"))
-
-  print(df)
+  
   return(df)
 }
 
@@ -225,19 +220,9 @@ get_fred_series_with_state_id <- function(series, metric_name, sleep = FALSE, st
 # gets the state abbr from a fred series.  The one special case is the US, which we have
 # to rename to US from USA
 get_state_from_series_id <- function(series) {
-  # Retrieve the tags for the series
-  series_tags <- fredr_series_tags(series)
-  # Print the output
-  print(series_tags)
-
-  state2 <- fredr_series_tags(series) %>% 
-    filter(group_id == "geo")
-    
-  print(state2)
-  
   state <- fredr_series_tags(series) %>% 
     filter(group_id == "geo") %>% 
-    slice(1) %>% 
+    slice(n()) %>% 
     pull(name) %>% 
     toupper()
   
@@ -367,7 +352,6 @@ get_weekly_claims_data <- function() {
   
   
 }
-
 
 # disaster unemployment assistance information
 get_dua_data <- function() {
@@ -645,7 +629,6 @@ get_basic_ui_information <- function() {
   
 }
 
-
 # combine bls unemployed info with general unemployment continuing claims numbers to get a recipiency rate
 # generally speaking, recipiency rate is total continued claims in an average week / total unemployed over that week
 # the function below returns a df with a recipiency rate that is smoothed with 12 month moving averages.
@@ -655,61 +638,17 @@ get_basic_ui_information <- function() {
 getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
 {
   message("Getting recipency")
-  message("columns of bls_unemployed:")
-  message(names(bls_unemployed))
+  #message("columns of bls_unemployed:")
+  #message(names(bls_unemployed))
   # take the bls unemployment data and just extract the data that we need, which includes getting a 
   # 12 month moving averages of the unemployed number
-  
-  # Set options to display all rows and columns
-  options(tibble.print_max = Inf, tibble.print_min = Inf)
-  
-  # Step 1: Pivot the data and print the structure
-  bls_unemployed_before_unnest <- bls_unemployed %>%
-    filter(endsWith(metric, "nsa")) %>% 
-    pivot_wider(names_from = metric, values_from = value)
-  
-  # Print the entire data frame
-  print(bls_unemployed_before_unnest)
-  
-  # Check the structure of the 'unemployment_rate_nsa' column
-  str(bls_unemployed_before_unnest$unemployment_rate_nsa)
-  
-  # Create an empty dataframe to store the results
-  expanded_data <- data.frame()
-  
-  # Loop through each row of the original dataframe
-  for(i in 1:nrow(bls_unemployed_before_unnest)) {
-    
-    # Get the current row
-    current_row <- bls_unemployed_before_unnest[i, ]
-    
-    # Get the unemployment_rate_nsa list
-    unemployment_rates <- current_row$unemployment_rate_nsa[[1]]
-    
-    # Create a new dataframe with 52 rows, each corresponding to a value in the unemployment_rate_nsa list
-    expanded_rows <- data.frame(
-      rptdate = current_row$rptdate,
-      st = current_row$st,
-      unemployment_rate_nsa = unemployment_rates
-    )
-    
-    # Append the expanded rows to the final dataframe
-    expanded_data <- rbind(expanded_data, expanded_rows)
-  }
-  
-  # Now you have the expanded data
-  print(expanded_data)
-  bls_unemployed_expanded = expanded_data
-  
-  # Step 3: Further processing on the expanded data frame
-  bls_unemployed <- bls_unemployed_expanded %>%
-    arrange(st, rptdate) %>%
-    group_by(st) %>%
-    mutate(unemployed_avg = round(rollmean(unemployment_rate, k = 12, align = "right", fill = NA), 0)) %>%
+  bls_unemployed <- bls_unemployed %>% filter(endsWith(metric, "nsa")) %>% 
+    pivot_wider(names_from = metric, values_from = value) %>% 
+    arrange(st, rptdate) %>% 
+    group_by(st) %>% 
+    mutate(unemployed_avg = round(rollmean(total_unemployed_nsa, k=12, align="right", na.pad=T), 0)) %>% 
     ungroup()
   
-  # Print the final data frame
-  print(bls_unemployed)
   
   # create a row for the US as a whole, not a US average:
   # note that the feds don't include PR and VI in their national unemployment numbers,
@@ -1358,26 +1297,18 @@ secret_read <- function(location, name) {
   )
 }
 
+
 # gets the unemployment rate and total unemployed for all 50 states + DC + the US;
 # uses a sleep within each request (1sec) so it takes on the order of 5 minutes to retrieve all of the data that we want
 # without hitting a rate limit
-# Define a function to process the labor force information
-# Fetch labor force information and reshape the data
 labor_force_info <- bind_rows(
   map_dfr(c("CLF16OV", "DCLF", paste0(state.abb, "LF")), get_fred_series_with_state_id, "labor_force_sa", sleep = TRUE),
-  map_dfr(c("CIVPART", paste0("LBSSA", str_pad(1:56, width = 2, side = "left", pad = "0"))), get_fred_series_with_state_id, "labor_force_participation_rate_sa", sleep = TRUE)
+  map_dfr(c("CIVPART", paste0("LBSSA", str_pad(1:56,width = 2, side = "left", pad = "0"))), get_fred_series_with_state_id, "labor_force_participation_rate_sa", sleep = TRUE)
 ) %>% 
-  pivot_wider(names_from = metric, values_from = value)
+  pivot_wider(names_from = metric, values_from = value) %>% 
+  mutate(civilian_non_insitutionalized_population_sa = 100 * labor_force_sa / labor_force_participation_rate_sa) %>% 
+  pivot_longer(cols = 3:5, names_to = "metric")
 
-  # Print the dataframe before the mutate step
-  print(labor_force_info)
-  
-  # Proceed with the mutate and further operations
-  labor_force_info <- labor_force_info %>%
-    mutate(civilian_non_insitutionalized_population_sa = 100 * labor_force_sa / labor_force_participation_rate_sa) %>% 
-    pivot_longer(cols = 3:5, names_to = "metric")
-
-                     
 bls_unemployed <- bind_rows(
   map_dfr(c("UNRATE", "DCUR", paste0(state.abb, "UR")), get_fred_series_with_state_id, "unemployment_rate_sa", sleep = TRUE),
   map_dfr(c("UNRATENSA", "DCURN", paste0(state.abb, "URN")), get_fred_series_with_state_id, "unemployment_rate_nsa", sleep = TRUE),
@@ -1482,4 +1413,3 @@ gs4_auth(path = rawToChar(json))
 # then write to the sheet
 message("Writing to Google Sheets")
 write_to_google_sheets(unemployment_df, google_df, sheet_name)
-
