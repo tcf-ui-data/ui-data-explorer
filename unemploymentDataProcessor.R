@@ -231,7 +231,7 @@ get_state_from_series_id <- function(series) {
   print(series_tags)
 
   state2 <- fredr_series_tags(series) %>% 
-    filter(group_id == "geo") %>% 
+    filter(group_id == "geo")
     
   print(state2)
   
