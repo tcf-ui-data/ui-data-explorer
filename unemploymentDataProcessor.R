@@ -229,6 +229,14 @@ get_state_from_series_id <- function(series) {
   series_tags <- fredr_series_tags(series)
   # Print the output
   print(series_tags)
+
+  state2 <- fredr_series_tags(series) %>% 
+    filter(group_id == "geot") %>% 
+    slice(n()) %>% 
+    pull(name) %>% 
+    toupper()
+
+  print(state2)
   
   state <- fredr_series_tags(series) %>% 
     filter(group_id == "geo") %>% 
