@@ -18,7 +18,7 @@ library(dplyr)
 
 message("Libraries loaded.")
 # fredr key
-fredr_set_key("1806f598daa5da6d213ff0166e740ebf")
+fredr_set_key(Sys.getenv("FRED_KEY"))
 # google sheet name
 sheet_name <- "1Wz98hOMQpYBUH8gt6udNv4xKExc66ioD_H1SP9-9J6k"
 
@@ -642,28 +642,13 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
   #message(names(bls_unemployed))
   # take the bls unemployment data and just extract the data that we need, which includes getting a 
   # 12 month moving averages of the unemployed number
-
-  # Start with the provided code to filter and pivot the dataframe
-  bls_unemployed <- bls_unemployed %>%
-    filter(endsWith(metric, "nsa")) %>%
-    pivot_wider(names_from = metric, values_from = value) %>%
-    arrange(st, rptdate)
-  
-  # Unnest the list column total_unemployed_nsa
-  bls_unemployed_long <- bls_unemployed %>%
-    unnest(total_unemployed_nsa)
-  
-  # Group by st and calculate the rolling mean
-  bls_unemployed_long <- bls_unemployed_long %>%
-    group_by(st) %>%
-    mutate(unemployed_avg = round(rollmean(total_unemployed_nsa, k = 12, align = "right", na.pad = TRUE), 0)) %>%
+  bls_unemployed <- bls_unemployed %>% filter(endsWith(metric, "nsa")) %>% 
+    pivot_wider(names_from = metric, values_from = value) %>% 
+    arrange(st, rptdate) %>% 
+    group_by(st) %>% 
+    mutate(unemployed_avg = round(rollmean(total_unemployed_nsa, k=12, align="right", na.pad=T), 0)) %>% 
     ungroup()
   
-  # Combine the results back into the original dataframe structure
-  # Ensure you retain all necessary columns
-  bls_unemployed <- bls_unemployed_long %>%
-    arrange(st, rptdate)
-
   
   # create a row for the US as a whole, not a US average:
   # note that the feds don't include PR and VI in their national unemployment numbers,
@@ -1312,36 +1297,18 @@ secret_read <- function(location, name) {
   )
 }
 
+
 # gets the unemployment rate and total unemployed for all 50 states + DC + the US;
 # uses a sleep within each request (1sec) so it takes on the order of 5 minutes to retrieve all of the data that we want
 # without hitting a rate limit
-# Define a function to process the labor force information
-# Fetch labor force information and reshape the data
 labor_force_info <- bind_rows(
   map_dfr(c("CLF16OV", "DCLF", paste0(state.abb, "LF")), get_fred_series_with_state_id, "labor_force_sa", sleep = TRUE),
-  map_dfr(c("CIVPART", paste0("LBSSA", str_pad(1:56, width = 2, side = "left", pad = "0"))), get_fred_series_with_state_id, "labor_force_participation_rate_sa", sleep = TRUE)
+  map_dfr(c("CIVPART", paste0("LBSSA", str_pad(1:56,width = 2, side = "left", pad = "0"))), get_fred_series_with_state_id, "labor_force_participation_rate_sa", sleep = TRUE)
 ) %>% 
-  pivot_wider(names_from = metric, values_from = value)
-
-# Unnest the list columns
-labor_force_info_unnested <- labor_force_info %>%
-  unnest(cols = c(labor_force_sa, labor_force_participation_rate_sa))
-
-# Ensure the unnested columns are numeric
-labor_force_info_unnested <- labor_force_info_unnested %>%
-  mutate(
-    labor_force_sa = as.numeric(labor_force_sa),
-    labor_force_participation_rate_sa = as.numeric(labor_force_participation_rate_sa)
-  )
-
-# Perform the mutation
-labor_force_info_unnested <- labor_force_info_unnested %>%
-  mutate(
-    civilian_non_insitutionalized_population_sa = 100 * labor_force_sa / labor_force_participation_rate_sa
-  ) %>%
+  pivot_wider(names_from = metric, values_from = value) %>% 
+  mutate(civilian_non_insitutionalized_population_sa = 100 * labor_force_sa / labor_force_participation_rate_sa) %>% 
   pivot_longer(cols = 3:5, names_to = "metric")
 
-                     
 bls_unemployed <- bind_rows(
   map_dfr(c("UNRATE", "DCUR", paste0(state.abb, "UR")), get_fred_series_with_state_id, "unemployment_rate_sa", sleep = TRUE),
   map_dfr(c("UNRATENSA", "DCURN", paste0(state.abb, "URN")), get_fred_series_with_state_id, "unemployment_rate_nsa", sleep = TRUE),
