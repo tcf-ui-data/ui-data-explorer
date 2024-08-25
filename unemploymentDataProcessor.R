@@ -661,14 +661,32 @@ getRecipiency <- function (bls_unemployed, ucClaimsPaymentsMonthly, pua_claims)
   # Check the structure of the 'unemployment_rate_nsa' column
   str(bls_unemployed_before_unnest$unemployment_rate_nsa)
   
-  # Step 2: Manually expand the list column into separate rows
-  bls_unemployed_expanded <- bls_unemployed_before_unnest %>%
-    mutate(unemployment_rate_nsa = map(unemployment_rate_nsa, ~ as.data.frame(.x))) %>%
-    unnest_longer(unemployment_rate_nsa) %>%
-    rename(unemployment_rate = unemployment_rate_nsa)
+  # Create an empty dataframe to store the results
+  expanded_data <- data.frame()
   
-  # Print the expanded data frame
-  print(bls_unemployed_expanded)
+  # Loop through each row of the original dataframe
+  for(i in 1:nrow(bls_unemployed_before_unnest)) {
+    
+    # Get the current row
+    current_row <- bls_unemployed_before_unnest[i, ]
+    
+    # Get the unemployment_rate_nsa list
+    unemployment_rates <- current_row$unemployment_rate_nsa[[1]]
+    
+    # Create a new dataframe with 52 rows, each corresponding to a value in the unemployment_rate_nsa list
+    expanded_rows <- data.frame(
+      rptdate = current_row$rptdate,
+      st = current_row$st,
+      unemployment_rate_nsa = unemployment_rates
+    )
+    
+    # Append the expanded rows to the final dataframe
+    expanded_data <- rbind(expanded_data, expanded_rows)
+  }
+  
+  # Now you have the expanded data
+  print(expanded_data)
+  bls_unemployed_expanded = expanded_data
   
   # Step 3: Further processing on the expanded data frame
   bls_unemployed <- bls_unemployed_expanded %>%
