@@ -222,7 +222,7 @@ get_fred_series_with_state_id <- function(series, metric_name, sleep = FALSE, st
 get_state_from_series_id <- function(series) {
   state <- fredr_series_tags(series) %>% 
     filter(group_id == "geo") %>% 
-    slice(n()) %>% 
+    slice(1) %>% 
     pull(name) %>% 
     toupper()
   
@@ -1413,4 +1413,3 @@ gs4_auth(path = rawToChar(json))
 # then write to the sheet
 message("Writing to Google Sheets")
 write_to_google_sheets(unemployment_df, google_df, sheet_name)
-
