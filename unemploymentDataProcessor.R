@@ -215,7 +215,8 @@ get_fred_series_with_state_id <- function(series, metric_name, sleep = FALSE, st
   # sleep to avoid a rate limitation, if need be
   # if(sleep) Sys.sleep(config::get("FRED_SLEEP_TIME")) --LANCE
   if(sleep) Sys.sleep(0.5)
-  
+
+  print(df)
   return(df)
 }
 
