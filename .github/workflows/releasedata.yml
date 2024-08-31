@@ -20,32 +20,37 @@ jobs:
       - name: Set image id
         run: |
           IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
-          # Change all uppercase to lowercase
-
           IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
-
-          # Strip git ref prefix from version
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-
-          # Strip "v" prefix from tag name
           [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
-
-          # Use Docker `latest` tag convention
           [ "$VERSION" == "$default-branch" ] && VERSION=latest
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
           echo "IMAGE_ID=$IMAGE_ID:$VERSION" >> $GITHUB_ENV
-          # echo "::set-env name=IMAGE_ID::$IMAGE_ID:$VERSION"
           echo "IMAGE ID: $IMAGE_ID"
+      
       - name: Checkout code
         uses: actions/checkout@v2
+
+      - name: Install Docker Compose
+        run: sudo apt-get update && sudo apt-get install -y docker-compose
+
+      - name: Check Docker and Docker Compose
+        run: |
+          docker --version
+          docker-compose --version
+
       - name: Download and process data
         run: |
+          set -x
           docker-compose run --rm datadownload
+
       - name: Create release for the parquet data, or update if necessary.
         run: . ./updateRelease.sh $GITHUB_REPOSITORY uiExplorerData unemployment_data.parquet
+
       - name: Zip csv data, to release it.
         run: zip data/unemployment_data.zip data/*.csv
+
       - name: Create or update release for csv data.
         run: |
           rm data/EUC-1982-1987-USDOLData.csv
