@@ -1221,7 +1221,7 @@ write_data_as_sheet <- function(df, sheet_name, tab, metric_filter) {
 }
 
 # write a series of dfs to a google sheet
-write_to_google_sheets <- function(df_all, df_google, stateClaims, sheet_name) {
+write_to_google_sheets <- function(df_all, df_google, sheet_name) {
 
   message("Writing First Time Payments to Google Sheets")
   df_all %>%
@@ -1278,8 +1278,8 @@ write_to_google_sheets <- function(df_all, df_google, stateClaims, sheet_name) {
     write_data_as_sheet(sheet_name, "Back End 3.2 Total Payments Since March 2020", "Total Payments Since")
 
   message("Writing State Claims to Google Sheets")
-  stateClaims %>%
-    write_data_as_sheet(sheet_name, "Back End Claims Automated", "stateClaims")
+  df_google %>%
+    write_data_as_sheet(sheet_name, "Back End Claims Automated", "^continued_claims$|^initial_claims$") 
 }
 
 # a function to decrypt a json file with a google auth token that has been
@@ -1420,7 +1420,7 @@ unemployment_df <-
 
 # made a df for the extra googly sheet stuff
 google_df <- 
-  map_dfr(list(total_payments_since_march_2020, average_total_benefits_paid, annual_denial_rate), 
+  map_dfr(list(total_payments_since_march_2020, average_total_benefits_paid, annual_denial_rate, stateClaims), 
           function(x) { 
             x %>% 
               pivot_longer(cols = !one_of(c("rptdate", "st")), names_to = "metric", values_to = "value")})
@@ -1439,4 +1439,4 @@ gs4_auth(path = rawToChar(json))
 
 # then write to the sheet
 message("Writing to Google Sheets")
-write_to_google_sheets(unemployment_df, google_df, stateClaims, sheet_name)
+write_to_google_sheets(unemployment_df, google_df, sheet_name)
