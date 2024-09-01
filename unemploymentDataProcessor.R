@@ -1319,7 +1319,7 @@ stateClaims <- bind_rows(
   )
 ) %>%
   pivot_wider(names_from = metric, values_from = value) %>%
-  filter(rptdate >= as.Date("2020-06-29"))
+  filter(rptdate >= as.Date("2024-06-29"))
 
 # Print the final combined and pivoted state claims data
 print("State Claims Data:")
