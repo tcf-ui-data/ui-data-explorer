@@ -57,4 +57,4 @@ jobs:
           echo IMAGE_ID=$IMAGE_ID
           echo VERSION=$VERSION
 
-          docker-compose run --rm shinyappsdeploywithrelease
+          docker compose run --rm shinyappsdeploywithrelease
