@@ -1,8 +1,8 @@
 default:
   DATA_DIR: "data"
   PROJECT_ROOT: "."
-  FRED_SLEEP_TIME: "1"
+  FRED_SLEEP_TIME: "5"
 docker:
   DATA_DIR: "/data"
   PROJECT_ROOT: "/Rscripts"
-  FRED_SLEEP_TIME: "2"
+  FRED_SLEEP_TIME: "5"
