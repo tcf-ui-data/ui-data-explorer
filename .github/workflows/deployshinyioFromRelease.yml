@@ -39,6 +39,9 @@ jobs:
           SHINYAPPS_TOKEN: ${{secrets.SHINYAPPS_TOKEN}}
           SHINYAPPS_ACCOUNT: ${{secrets.SHINYAPPS_ACCOUNT}}
         run: |
+          echo "Account: $SHINYAPPS_ACCOUNT"
+          echo "Secret present: $([ -n "$SHINYAPPS_SECRET" ] && echo "yes" || echo "no")"
+          echo "Token present: $([ -n "$SHINYAPPS_TOKEN" ] && echo "yes" || echo "no")"
           # I think we want to build the image when we run this, rather than relying on the stored image.
           #IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/$IMAGE_NAME
           IMAGE_ID=${{ github.repository }}/$IMAGE_NAME
